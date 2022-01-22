@@ -3,14 +3,9 @@ import random
 import json
 from management import get_keys
 
-
+from modelos.models import HASHTAGS
 
 site = 'https://inversionesyfinanzas.xyz'
-
-lista_hashtags = [
-    'invertir', 'inversiones', 'valueinvesting', 'invertirenvalor', 'inversionesinteligente',
-    'bolsa', 'invertirenbolsa', 'inversorinteligente'
-    ]
 
 
 
@@ -29,8 +24,9 @@ class TWITEER:
         twitter_api = tweepy.API(auth)
         return twitter_api
 
-    def tweet_text(self, status):
+    def tweet_text(self, status, lista_hashtags):
         twitter_api = self.do_authenticate()
+        
         hashtag1 = random.choice(lista_hashtags)
         hashtag2 = random.choice(lista_hashtags)
         hashtag3 = random.choice(lista_hashtags)
@@ -51,13 +47,3 @@ class TWITEER:
 
         return response._json
     
-
-status = 'caracol'
-filename = '/home/lucas/smcontent/por_publicar/0a236d4b-c8bd-4d8b-8185-f84ab645d913/horizontal-final.mp4'
-
-
-t = TWITEER().tweet_text(status)
-
-print(t)
-
-print(t['id'])

@@ -13,7 +13,7 @@ horizontal_video_string = 'horizontal-final.mp4'
 FACEBOOK_MAIN_URL = 'https://graph.facebook.com/'
 
 
-from models import HASHTAGS, DEFAULT_TITLES, POSTS
+from modelos.models import HASHTAGS, DEFAULT_TITLES, INSTAGRAM_POST
 
 
 class INSTAGRAM():
@@ -164,7 +164,7 @@ class INSTAGRAM():
             print('error when publishing', e)
         
 
-    def post_ig(self, caption= "", video_url= "", image_url= "", upload_cloudinary = True, destroy_asset = True):
+    def post_ig(self, caption= "", hashtags=[], video_url= "", image_url= "", upload_cloudinary = True, destroy_asset = True):
         """
         destroy_asset eliminates the previous uploaded asset to Cloudinary
         
@@ -172,7 +172,7 @@ class INSTAGRAM():
         """
 
         if caption == '':
-            caption = self.create_ig_caption()
+            caption = self.create_ig_caption(caption, hashtags)
 
         if image_url == "":
             post_id = self.pre_post_ig(caption, video_url, upload_cloudinary = upload_cloudinary)
@@ -201,6 +201,8 @@ class INSTAGRAM():
                     break
                 if status['status_code'] == 'FINISHED':
                     self.publish_content_ig(post_id, destroy_asset)
+                    return ig_post_id
+
             except Exception as e:
                 print(e)
                 break
@@ -217,31 +219,22 @@ class INSTAGRAM():
     
 
 
-    # def publish_on_instagram(self):
+    def default_post_on_instagram(self, title:str, local_content:str, hashtags:list):
+        
+        hashtags = ' '.join(hashtags)
 
-    #     num = random.randint(0, len(to_post_dir))
+        new_image = create_img_from_frame(local_content)
+        ig_cap = self.create_ig_caption(title, hashtags)
 
-    #     folder = os.listdir(to_post_dir)[num]
+        ig_id = self.post_ig(ig_cap, image_url = new_image)
 
-    #     complete_url_folder = f'{to_post_dir}{folder}'
-
-    #     horizontal_url = f'{complete_url_folder}/{horizontal_video_string}'
-
-    #     new_image = create_img_from_frame(horizontal_url)
-    #     ig_cap = self.create_ig_caption()
-
-    #     ig_id = self.post_ig(ig_cap, image_url = new_image)
-    #     MANAGE_RECORDS().update_record_ig(folder, ig_id)
-    #     desktop_notification('Instagram', f"Post was successfully posted {complete_url_folder}.")
+        return ig_id
 
 
     
-    def create_ig_caption(self):
-        titles = DEFAULT_TITLES.all()
-        caption = random.choice(titles)
-        hashtags = ' '.join([d.name for d in HASHTAGS.where(for_ig = True).all()])
+    def create_ig_caption(self, title, hashtags):        
         instagram_caption = f"""
-        {caption.title}
+        {title}
         .
         .
         .

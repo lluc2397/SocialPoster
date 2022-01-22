@@ -1,22 +1,24 @@
-
+#!/home/lucas/Documents/programacion/SocialPoster/venv/bin/python3.8
 
 import logging
 import argparse
-
+import os
 import sys
+
 sys.dont_write_bytecode = True
 
-# Django specific settings
-import os
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
+
 import django
 django.setup()
 
+from socialmedias.youpy import YOUTUBE
+
 logging.basicConfig(filename='problemas.log', level=logging.WARNING)
 
+from management import MULTIPOSTAGE
 
 """
-Publicar los shorts directamente en FB, Youtube y Twitter, transformarlo en foto y publicarlo en Insta.
 
 Descargar y publicar directamten los videos con subtítulos en Youtube. Compartir el link del video en Face y Twitter.
 
@@ -31,15 +33,14 @@ Después probar con google business
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-shrt', "--short",  type=int, default=False,
+    parser.add_argument('-short', "--short",  action='store_true',
     help='Post a short video')
 
-    parser.add_argument('-long', "--long",  type=int, default=False,
+    parser.add_argument('-long', "--long", action='store_true',
     help='Post a long video')
     
 
     args_dict = vars(parser.parse_args())
-
 
     if all(value is False for value in list(args_dict.values())):
         parser.error("It's necessary to select at least one social media")
@@ -51,12 +52,8 @@ def main():
     if args_dict['short'] is True:
         pass
 
-
-
-
+from modelos.models import YOUTUBE_CHANNELS
 
 if __name__ == '__main__':
-    main()
-    
-      
-   
+    # main()
+

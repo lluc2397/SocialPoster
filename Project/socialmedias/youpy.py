@@ -28,37 +28,14 @@ import time
 from selenium.webdriver.support.select import Select
 
 
-from models import (
-    VIDEOS_TO_PARSE, 
-    EMOJIS,
-    DEFAULT_TITLES
-)
-
-# {related_links}
-
-youtube_description = f"""
-
-Prueba las herramientas que todo inversor inteligente necesita: https://inversionesyfinanzas.xyz
-
-Visita nuestras redes sociales:
-Facebook: https://www.facebook.com/Inversiones.y.Finanzas.Para.Todos
-Instagram: https://www.instagram.com/inversiones.finanzas/
-TikTok: https://www.tiktok.com/@inversionesyfinanzas?
-Twitter : https://twitter.com/InvFinz
-LinkedIn : https://www.linkedin.com/company/inversiones-finanzas
-
-En este canal de INVERSIONES & FINANZAS, aprende cómo realizar un BUEN ANÁLISIS de las EMPRESAS. Descubre dónde invertir y de qué forma ENCONTRAR BUENAS OPORTUNIDADES de INVERSIÓN.
-
-APRENDE como invertir en la bolsa de valores.🥇 DESCUBRE las mejores ESTRATEGIAS que existen para INVERTIR y los pasos que deberías seguir para INVERTIR en la BOLSA mexicana de VALORES. ¿Quieres CONOCER la forma de INVERTIR de los INVERSORES más célebres de forma clara y FÁCIL? ADÉNTRATE en el ASOMBROSO mundo de las INVERSIONES. Si lo  que buscas es aprender a : 
-invertir en la bolsa de valores
-invertir sin dinero
-invertir con poco dinero
-invertir siendo joven
-multiplicar tu dinero
-analizar una empresa
-"""
-
-youtube_tags = "COMO INVERTIR, INVERTIR CON POCO DINERO, INVERTIR EN BOLSA, INVERTIR EN BOLSA, BOLSA DE VALORES, VALUE INVESTING, INVERSIÓN EN VALOR, INVERTIR FACIL, PUNTOS CLAVE PARA INVERTIR, INVERSIONES PARA PRINCIPIANTES, INVERTIR DESDE CERO"
+from modelos.models import (
+  YOUTUBE_VIDEO_DOWNLOADED,
+  FOLDERS,
+  LOCAL_CONTENT,
+  YOUTUBE_POST,
+  HASHTAGS,
+  DEFAULT_TITLES,
+  EMOJIS)
 
 short_tag = '#shorts'
 
@@ -68,13 +45,15 @@ vertical_video_string = 'vertical-final.mp4'
 
 yb_long_videos_folder = '/home/lucas/smcontent/yb-long-video/'
 
+# date = datetime.datetime(year, month, day,hour,minute)
+# yb_date = date.strftime("%Y-%m-%dT%H:%M:%S")
 
 class YOUTUBE:
   def __init__(self) -> None:
     self.MAX_RETRIES = 10
     self.RETRIABLE_EXCEPTIONS = (httplib2.HttpLib2Error, IOError)
     self.RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
-    self.CLIENT_SECRETS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../client_secrets.json"))
+    self.CLIENT_SECRETS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../client_secrets.json"))
     self.YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
     self.YOUTUBE_API_SERVICE_NAME = "youtube"
     self.YOUTUBE_API_VERSION = "v3"
@@ -102,7 +81,7 @@ class YOUTUBE:
       scope=self.YOUTUBE_UPLOAD_SCOPE,
       message=self.MISSING_CLIENT_SECRETS_MESSAGE)
 
-    storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../UploadVideos-oauth2.json")))
+    storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../UploadVideos-oauth2.json")))
     credentials = storage.get()
 
     if credentials is None or credentials.invalid:
@@ -113,16 +92,9 @@ class YOUTUBE:
 
 
 
-  def initialize_upload(self, video_title, video_file, post_time='', video_tags='', description=youtube_description, privacyStatus="private"):
+  def initialize_upload(self, video_title:str, video_file:str,  video_tags:list, description:str, post_time='', privacyStatus="private"):
     youtube = self.get_authenticated_service()
     tags = video_tags
-
-    tags = tags.split(",")
-
-    if video_title=='':
-      video_title = random.choice(DEFAULT_TITLES.all())
-      video_title = video_title.title
-
 
     if privacyStatus == 'public':
       status = {
@@ -161,7 +133,7 @@ class YOUTUBE:
       scope=self.YOUTUBE_READ_WRITE_SSL_SCOPE,
       message=self.MISSING_CLIENT_SECRETS_MESSAGE)
 
-    storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../UploadCaptions-oauth2.json")))     
+    storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../UploadCaptions-oauth2.json")))     
     credentials = storage.get()
 
     if credentials is None or credentials.invalid:
@@ -173,7 +145,7 @@ class YOUTUBE:
 
 
   #upload captions
-  def upload_caption(self, video_id, file, language = 'es', name = 'Español'):
+  def upload_caption(self, video_id:str, file:str, language = 'es', name = 'Español'):
     youtube = self.get_authenticated_service_for_captions()
 
     print('Uploading caption...')
@@ -234,7 +206,7 @@ class YOUTUBE:
   
 
 
-  def new_video_to_parse(self, video_url, is_english = True, downloaded = False):
+  def new_video_to_parse(self,channel_to_parse, video_url, is_english = True, downloaded = False):
     try:
       yb_video = YouTube(video_url)
 
@@ -249,9 +221,9 @@ class YOUTUBE:
       if is_english is True:        
         new_title = translator.translate(old_title, lang_src='en', lang_tgt='es')
 
-      new_video = VIDEOS_TO_PARSE.create(
+      new_video = YOUTUBE_VIDEO_DOWNLOADED.objects.create(
       url = video_url,
-      original_channel = yb_video.author,
+      original_channel = channel_to_parse,
       old_title = old_title,
       new_title = new_title,
       downloaded = downloaded,
@@ -264,24 +236,31 @@ class YOUTUBE:
 
 
 
-  def parse_youtube_channel(self, channel_to_parse):
+  def parse_youtube_channel(self, channel_to_parse:str):
     """
     channel_to_parse has to be the channel's url
     """
-    channel = Channel(channel_to_parse)
+    channel = Channel(channel_to_parse.url)
     all_videos = channel.video_urls
     for video_url in (all_videos):
-      self.new_video_to_parse(video_url)
+      self.new_video_to_parse(channel_to_parse,video_url)
 
     print('Channel parsed')
   
 
 
-  def download_youtube_video(self, video_url, get_captions = False, is_new = False, is_english = True):
+  def download_youtube_video(self, new_id, video_url:str, get_captions = True, is_new = False, is_english = True):
     
     try:
-        new_id = video_url
-        new_dir = yb_long_videos_folder+new_id
+        new_dir = yb_long_videos_folder+str(new_id)
+
+        folder = FOLDERS.objects.get_or_create(full_path = yb_long_videos_folder)[0]
+
+        new_local_content = LOCAL_CONTENT.objects.create(
+          iden = new_id,
+          main_folder = folder,
+        )
+
         os.mkdir(new_dir)
 
         yb_video = YouTube(video_url)
@@ -300,7 +279,7 @@ class YOUTUBE:
   
 
 
-  def get_caption(self, new_dir, video_url):
+  def get_caption(self, new_dir:str, video_url:str):
     # Opciones de navegación
     options = Options()
     options.add_argument("headless")
@@ -344,98 +323,52 @@ class YOUTUBE:
     except Exception as e:
         logging.error(f'Error en la descarga de captions del video {video_url} ---> {e}')
         os.rmdir(new_dir)
-  
 
 
-  def download_existing_videos(self, num):
-    video_query = VIDEOS_TO_PARSE.query(downloaded = False, has_caption = True)[:num]
+  def upload_video_youtube(self,content_related,post_type:int,video_path:str, custom_title:bool,yb_title='',is_original=False, is_local=True,privacyStatus='public'):
+    """
+    if post_type == 1 video is long, if post_type == 2 is short
 
-    for video in video_query:
-        try:
-          self.download_youtube_video(video.url, get_captions = True)
-        except Exception as e:
-            print('error al descargar en multipples', e)
-            continue
-        print('Video downloaded')
-    print('Downloads finished')
-  
-
-  # def schedule_shorts_on_youtube(self, year, month, day, hour,number_to_post, contents_folder = posted_dir):
-  #   folders = [folder for folder in os.listdir(contents_folder)]
-
-  #   for folder in folders[:number_to_post]:
-  #       complete_url_folder = f'{contents_folder}{folder}'
-
-  #       vertical_url = f'{complete_url_folder}/{vertical_video_string}'
-  #       hour += random.randrange(6, 9)
-  #       minute = random.randrange(0, 59)
-  #       if hour >= 24:
-  #           hour = 0
-  #           day += 1
-  #       if day >=31:
-  #           day = 1
-  #           month += 1
-  #       if month >= 13:
-  #           month = 1
-  #           year += 1
-
-  #       yb_title = random.choice(titres_pour_youtube) + short_tag
-  #       date = datetime.datetime(year, month, day,hour,minute)
-  #       yb_date = date.strftime("%Y-%m-%dT%H:%M:%S")
-  #       try:
-  #           yb_vid_id = self.initialize_upload(yb_title, vertical_url, yb_date, youtube_tags, youtube_description)
-            
-  #           shutil.move(complete_url_folder, yb_pos+folder)
-  #           desktop_notification('Youtube', f"Video id {yb_vid_id} was successfully uploaded.")
-  #           MANAGE_RECORDS().update_record_yb(folder,yb_vid_id ,date)
-
-  #       except Exception as e:
-  #           desktop_notification('Youtube', f"Error con el video {complete_url_folder}")
-  #           print(e)
-  #           break
-  
+    custom_title is True if you create your own title
+    """
 
 
-  def publish_downloaded_video_youtube(self, year, month, day, hour, number_to_post,contents_folder = yb_long_videos_folder):
+    youtube_record = YOUTUBE_POST.objects.create(
+      is_local = is_local,
+      content_related = content_related,
+      post_type = post_type,
+      is_original = is_original
+    )
+
+    emojis = EMOJIS.objects.all()
+
+    emoji1 = random.choice(emojis)
+    emoji2 = random.choice(emojis)
+
+    if custom_title is True:
+      youtube_record.title = yb_title
+      yb_title= yb_title
+    else:
+      titles = [al_title for al_title in DEFAULT_TITLES.objects.all()]
+      yb_title = random.choice(titles)
+      youtube_record.default_title = yb_title
+      yb_title = yb_title.title
+
+    yb_title = f'{emoji1.emoji} {yb_title}{emoji2.emoji}'
+
+    if post_type == 2:
+      yb_title = yb_title + short_tag
+
+    youtube_record.emojis.add(emoji1)
+    youtube_record.emojis.add(emoji2)
+
+    yb_hashtags = []
+    for hashtag in HASHTAGS.objects.filter(for_yb = True):
+      youtube_record.hashtags.add(hashtag)
+      yb_hashtags.append(hashtag.name)
     
-    folders = [folder for folder in os.listdir(contents_folder)]
+
+    yb_post_id = self.initialize_upload(video_title=yb_title, video_file=video_path,  video_tags=yb_hashtags, description=youtube_description, privacyStatus=privacyStatus)
     
-    for folder in folders[:number_to_post]:
-        complete_url_folder = contents_folder+folder
-        contents = os.listdir(complete_url_folder)
-
-        for content in contents:
-            if content.endswith("Spanish.srt"):
-                srt_file = content
-            if content.endswith(".mp4"):
-                video_file = content
-        video = VIDEOS_TO_PARSE.where(url = folder)
-
-        yb_title = video.old_title
-        if video.new_title != "":
-            yb_title = video.new_title
-      
-        hour += random.randrange(6, 9)
-        minute = random.randrange(0, 59)
-        if hour >= 24:
-            hour = 0
-            day += 1
-        if day >=31:
-            day = 1
-            month += 1
-        if month >= 13:
-            month = 1
-            year += 1
-        
-        date = datetime.datetime(year, month, day,hour,minute)
-        yb_date = date.strftime("%Y-%m-%dT%H:%M:%S")
-
-        try:
-            full_video_url = f'{complete_url_folder}/{video_file}'
-            full_srt_url = f'{complete_url_folder}/{srt_file}'
-
-            yb_vid_id = self.initialize_upload(yb_title, full_video_url, yb_date, youtube_tags, youtube_description)   
-            self.upload_caption(yb_vid_id, full_srt_url)
-
-        except Exception as e:
-            print(e)
+    youtube_record.social_id = yb_post_id
+    youtube_record.save()

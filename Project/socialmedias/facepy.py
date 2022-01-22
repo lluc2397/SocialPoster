@@ -2,7 +2,7 @@ from numpy import random
 import requests
 import datetime
 
-from models import HASHTAGS, POSTS, DEFAULT_TITLES
+from modelos.models import HASHTAGS, DEFAULT_TITLES
 
 horizontal_video_string = 'horizontal-final.mp4'
 
@@ -52,15 +52,15 @@ class FACEBOOK():
 
 
     
-    def post_fb_video(self, description= "" ,video_url= "", title= "", post_time='', post_now = False):
+    def post_fb_video(self, description= "" ,video_url= "", title= "", post_time='',hashtags=[], post_now = False):
         """
         Post_now is False if the post has to be scheduled, True to post it now
         """
         if description == '':
-            description = self.create_fb_description()
+            description = self.create_fb_description(hashtags)
         
         if title == '':
-            title = random.choice(DEFAULT_TITLES.all())
+            title = random.choice([def_title.title for def_title in DEFAULT_TITLES.objects.all()])
 
         files = {'source': open(video_url, 'rb')}
 
@@ -91,17 +91,38 @@ class FACEBOOK():
 
         else:
             print(re)
+            print(re.content)
             print(re.json())
 
 
     
-    def post_text(self, text= "", post_time= "", post_now = False):
-        data ={
-            'access_token': self.page_access_token,
-            'text': text
-        }
+    def post_text(self, text= "", post_time= "", post_now = True, link=''):
+
+        if post_now is False:
+            pass
+        else:
+            data ={
+                'access_token': self.page_access_token,
+                'message': text
+            }
+        
+        if link !='':
+            data['link'] = link
+
         print ("Posting file...")
-        requests.post(f'{self.facebook_url}{self.page_id}/feed', data = data)
+        re = requests.post(f'{self.facebook_url}{self.page_id}/feed', data = data)
+        print(re.content)
+        print(re.json())
+        response = {}
+        if re.status_code == 200:
+            response['status'] = re.status_code
+            response['post_id'] = str(re.json()['id'])            
+            return response
+
+        else:
+            print(re)
+            print(re.content)
+            print(re.json())
 
 
 
@@ -112,6 +133,20 @@ class FACEBOOK():
         }
         print ("Posting file...")
         requests.post(f'{self.facebook_url}{self.page_id}/photos', data = data)
+    
+
+    def share_post_to_old_page(self, new_page_id, post_id):
+        print('repost')
+        url_to_share = f'https://www.facebook.com/{new_page_id}/posts/{post_id}'
+
+        self.post_text(text=f'Recuerda que estamos migrando a la nueva página, no te pierdas el nuevo contenido y las sorpresas', link = url_to_share)
+    
+
+    def share_youtube_video(self,yb_title, youtube_video_id):
+        print('reposting youtube video')
+        url_to_share = f'https://www.youtube.com/watch?v={youtube_video_id}'
+
+        self.post_text(text=yb_title, link = url_to_share)
     
 
 
@@ -157,13 +192,13 @@ class FACEBOOK():
     
 
 
-    def create_fb_description(self):
-        hashtags = ' '.join([d.name for d in HASHTAGS.where(for_fb = True).all()])
+    def create_fb_description(self, hashtags):
+        hashtags = ' '.join(hashtags)
         face_description = f"""
         Prueba las herramientas que todo inversor inteligente necesita: https://inversionesyfinanzas.xyz
 
         Visita nuestras redes sociales:
-        Facebook: https://www.facebook.com/Inversiones.y.Finanzas.Para.Todos
+        Facebook: https://www.facebook.com/InversionesyFinanzas/
         Instagram: https://www.instagram.com/inversiones.finanzas/
         TikTok: https://www.tiktok.com/@inversionesyfinanzas?
         Twitter : https://twitter.com/InvFinz
