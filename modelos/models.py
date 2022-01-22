@@ -73,8 +73,9 @@ class LOCAL_CONTENT(models.Model):
         return str(self.iden)
     
     def save(self):
-        if iden is None:
-            iden = self.create_uuid()
+        print('save')
+        if self.iden is None:
+            self.iden = self.create_uuid()
         return super().save(*args, **kwargs)
     
     def create_uuid(self) -> uuid:

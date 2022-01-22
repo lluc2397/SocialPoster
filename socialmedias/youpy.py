@@ -5,6 +5,7 @@ import shutil
 import datetime
 import time
 import logging
+import sys
 
 from apiclient.discovery import build_from_document
 from apiclient.discovery import build
@@ -20,12 +21,13 @@ httplib2.RETRIES = 1
 
 from pytube import YouTube, Channel
 
-from translate.google_trans_new import google_translator
+
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import time
 from selenium.webdriver.support.select import Select
+
 
 
 from modelos.models import (
@@ -36,6 +38,8 @@ from modelos.models import (
   HASHTAGS,
   DEFAULT_TITLES,
   EMOJIS)
+
+from translate.google_trans_new import google_translator
 
 short_tag = '#shorts'
 
@@ -52,7 +56,7 @@ class YOUTUBE:
     self.MAX_RETRIES = 10
     self.RETRIABLE_EXCEPTIONS = (httplib2.HttpLib2Error, IOError)
     self.RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
-    self.CLIENT_SECRETS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../client_secrets.json"))
+    self.CLIENT_SECRETS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../client_secrets.json"))
     self.YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
     self.YOUTUBE_API_SERVICE_NAME = "youtube"
     self.YOUTUBE_API_VERSION = "v3"
@@ -80,7 +84,7 @@ class YOUTUBE:
       scope=self.YOUTUBE_UPLOAD_SCOPE,
       message=self.MISSING_CLIENT_SECRETS_MESSAGE)
 
-    storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../UploadVideos-oauth2.json")))
+    storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../UploadVideos-oauth2.json")))
     credentials = storage.get()
 
     if credentials is None or credentials.invalid:
@@ -132,7 +136,7 @@ class YOUTUBE:
       scope=self.YOUTUBE_READ_WRITE_SSL_SCOPE,
       message=self.MISSING_CLIENT_SECRETS_MESSAGE)
 
-    storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../UploadCaptions-oauth2.json")))     
+    storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../UploadCaptions-oauth2.json")))     
     credentials = storage.get()
 
     if credentials is None or credentials.invalid:
@@ -254,27 +258,29 @@ class YOUTUBE:
         yb_long_folder = FOLDERS.objects.get_or_create(full_path = '/home/lucas/smcontent/yb-long-video/')[0]
 
         print('Getting folder', yb_long_folder)
+        ls = LOCAL_CONTENT().create_uuid()
+        print(ls)
         local_content = LOCAL_CONTENT.objects.create(main_folder = yb_long_folder)
 
         print('Creating local content', local_content)
 
-        new_dir = f'{local_content.main_folder.full_path}{local_content.iden}'
-        print('Creating new directory', new_dir)
+        # new_dir = f'{local_content.main_folder.full_path}{local_content.iden}'
+        # print('Creating new directory', new_dir)
 
-        os.mkdir(new_dir)
+        # os.mkdir(new_dir)
 
-        yb_video = YouTube(video_url)
+        # yb_video = YouTube(video_url)
 
-        if is_new is True:
-          self.new_video_to_parse(video_url, is_english, True)           
+        # if is_new is True:
+        #   self.new_video_to_parse(video_url, is_english, True)           
         
-        print('Downloading video')
-        yb_video.streams.get_highest_resolution().download(new_dir)            
+        # print('Downloading video')
+        # yb_video.streams.get_highest_resolution().download(new_dir)            
 
-        if get_captions is True:
-          self.get_caption(local_content, video_url)
+        # if get_captions is True:
+        #   self.get_caption(local_content, video_url)
         
-        return local_content
+        # return local_content
 
     except Exception as e:
       logging.error(f'Error en la descarga del video {video_url} ---> {e}')

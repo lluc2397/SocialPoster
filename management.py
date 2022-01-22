@@ -39,7 +39,7 @@ horizontal_video_string = 'horizontal-final.mp4'
 vertical_video_string = 'vertical-final.mp4'
 
 def get_keys(name):
-    path_keys = os.path.abspath(os.path.join(os.path.dirname(__file__),'../../keys.json'))
+    path_keys = os.path.abspath(os.path.join(os.path.dirname(__file__),'../keys.json'))
     keys_json = open(path_keys)
     data = json.load(keys_json)
     return data[name]
@@ -201,16 +201,16 @@ class MULTIPOSTAGE:
 
         try:
             new_local_content = self.youtube().download_youtube_video(video_url=video.url, get_captions = True)
-            video.downloaded = True
-            video.save()
+            # video.downloaded = True
+            # video.save()
 
-            yb_title = video.old_title
-            if video.new_title:
-                yb_title = video.new_title
+            # yb_title = video.old_title
+            # if video.new_title:
+            #     yb_title = video.new_title
 
-            yb_video_id = self.youtube().upload_video_youtube(local_content_related=new_local_content,post_type=1, yb_title=yb_title, privacyStatus='public')
+            # yb_video_id = self.youtube().upload_video_youtube(local_content_related=new_local_content,post_type=1, yb_title=yb_title, privacyStatus='public')
 
-            self.repost_youtube_video(yb_title, yb_video_id)
+            # self.repost_youtube_video(yb_title, yb_video_id)
         except Exception as e:
             print(e)
         

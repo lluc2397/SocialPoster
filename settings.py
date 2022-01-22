@@ -21,4 +21,6 @@ DATABASES = {
 
 INSTALLED_APPS = [
     "modelos",
+    "socialmedias",
+    "translate",
     ]
