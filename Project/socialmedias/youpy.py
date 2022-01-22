@@ -43,7 +43,6 @@ translator = google_translator()
                                   
 vertical_video_string = 'vertical-final.mp4'
 
-yb_long_videos_folder = '/home/lucas/smcontent/yb-long-video/'
 
 # date = datetime.datetime(year, month, day,hour,minute)
 # yb_date = date.strftime("%Y-%m-%dT%H:%M:%S")
@@ -249,17 +248,18 @@ class YOUTUBE:
   
 
 
-  def download_youtube_video(self, new_id, video_url:str, get_captions = True, is_new = False, is_english = True):
+  def download_youtube_video(self, video_url:str, get_captions = True, is_new = False, is_english = True):
     
     try:
-        new_dir = yb_long_videos_folder+str(new_id)
+        yb_long_folder = FOLDERS.objects.get_or_create(full_path = '/home/lucas/smcontent/yb-long-video/')[0]
 
-        folder = FOLDERS.objects.get_or_create(full_path = yb_long_videos_folder)[0]
+        print('Getting folder', yb_long_folder)
+        local_content = LOCAL_CONTENT.objects.create(main_folder = yb_long_folder)
 
-        new_local_content = LOCAL_CONTENT.objects.create(
-          iden = new_id,
-          main_folder = folder,
-        )
+        print('Creating local content', local_content)
+
+        new_dir = f'{local_content.main_folder.full_path}{local_content.iden}'
+        print('Creating new directory', new_dir)
 
         os.mkdir(new_dir)
 
@@ -267,11 +267,14 @@ class YOUTUBE:
 
         if is_new is True:
           self.new_video_to_parse(video_url, is_english, True)           
-            
+        
+        print('Downloading video')
         yb_video.streams.get_highest_resolution().download(new_dir)            
 
         if get_captions is True:
-          self.get_caption(new_dir, video_url)
+          self.get_caption(local_content, video_url)
+        
+        return local_content
 
     except Exception as e:
       logging.error(f'Error en la descarga del video {video_url} ---> {e}')
@@ -279,14 +282,14 @@ class YOUTUBE:
   
 
 
-  def get_caption(self, new_dir:str, video_url:str):
+  def get_caption(self, local_content, video_url:str):
     # Opciones de navegación
     options = Options()
     options.add_argument("headless")
     options.add_argument("disable-infobars")
     options.add_argument("--disable-extensions")
     options.add_experimental_option("prefs", {
-            "download.default_directory": f"{new_dir}",
+            "download.default_directory": f"{local_content.main_folder.full_path}{local_content.iden}",
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing_for_trusted_sources_enabled": False,
@@ -322,20 +325,18 @@ class YOUTUBE:
         driver.close()
     except Exception as e:
         logging.error(f'Error en la descarga de captions del video {video_url} ---> {e}')
-        os.rmdir(new_dir)
+        local_content.delete()
+        os.rmdir(f'{local_content.main_folder.full_path}{local_content.iden}')
 
 
-  def upload_video_youtube(self,content_related,post_type:int,video_path:str, custom_title:bool,yb_title='',is_original=False, is_local=True,privacyStatus='public'):
+  def upload_video_youtube(self,local_content_related,post_type:int, yb_title='',is_original=False, with_caption=True, is_local=True,privacyStatus='public'):
     """
     if post_type == 1 video is long, if post_type == 2 is short
-
-    custom_title is True if you create your own title
     """
-
 
     youtube_record = YOUTUBE_POST.objects.create(
       is_local = is_local,
-      content_related = content_related,
+      content_related = local_content_related,
       post_type = post_type,
       is_original = is_original
     )
@@ -345,18 +346,26 @@ class YOUTUBE:
     emoji1 = random.choice(emojis)
     emoji2 = random.choice(emojis)
 
-    if custom_title is True:
-      youtube_record.title = yb_title
-      yb_title= yb_title
-    else:
+    if yb_title == '':
       titles = [al_title for al_title in DEFAULT_TITLES.objects.all()]
-      yb_title = random.choice(titles)
-      youtube_record.default_title = yb_title
-      yb_title = yb_title.title
+      random_yb_title = random.choice(titles)
+      youtube_record.default_title = random_yb_title
+      yb_title = random_yb_title.title
+    else:
+      youtube_record.title = yb_title
 
     yb_title = f'{emoji1.emoji} {yb_title}{emoji2.emoji}'
 
-    if post_type == 2:
+    video_dir = f'{local_content_related.main_folder.full_path}{local_content_related.iden}'
+
+    if post_type == 1:
+      for files in os.listdir(video_dir):
+        if file.endswith('.mp4'):
+          video_path = video_dir +file
+        if file.endswith('.srt'):
+          captions_path = video_dir +file
+    else:
+      video_path = f'{video_dir}/vertical-final.mp4'
       yb_title = yb_title + short_tag
 
     youtube_record.emojis.add(emoji1)
@@ -370,5 +379,12 @@ class YOUTUBE:
 
     yb_post_id = self.initialize_upload(video_title=yb_title, video_file=video_path,  video_tags=yb_hashtags, description=youtube_description, privacyStatus=privacyStatus)
     
+    if with_caption is True:
+      self.upload_caption(yb_post_id,captions_path)
+
     youtube_record.social_id = yb_post_id
     youtube_record.save()
+    local_content_related.published = True
+    local_content_related.save()
+
+    return yb_post_id

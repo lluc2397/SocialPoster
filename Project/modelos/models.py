@@ -71,6 +71,18 @@ class LOCAL_CONTENT(models.Model):
 
     def __str__(self) -> str:
         return str(self.iden)
+    
+    def save(self):
+        if iden is None:
+            iden = self.create_uuid()
+        return super().save(*args, **kwargs)
+    
+    def create_uuid(self) -> uuid:
+        new_iden = uuid.uuid4()
+        if LOCAL_CONTENT.objects.filter(iden = new_iden).exists():
+            return self.create_uuid()
+        else:
+            return new_iden
 
 
 class FACEBOOK_POST(models.Model):

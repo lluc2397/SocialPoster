@@ -56,4 +56,5 @@ from modelos.models import YOUTUBE_CHANNELS
 
 if __name__ == '__main__':
     # main()
+    MULTIPOSTAGE().dwnl_post_share_new_long_yb_video()
 

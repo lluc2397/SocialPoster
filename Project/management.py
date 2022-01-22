@@ -72,17 +72,14 @@ class MULTIPOSTAGE:
         from socialmedias.youpy import YOUTUBE
         from socialmedias.tweetpy import TWITEER
 
-        self.facebook = FACEBOOK
+        self.new_facebook = FACEBOOK(user_token=user_access_token, page_access_token=new_long_live_page_token, page_id=new_facebook_page_id)
+        self.old_facebook = FACEBOOK(user_token=user_access_token, page_access_token=old_fb_page_access_token, page_id=old_faceboo_page_id)
         self.insta = INSTAGRAM
         self.youtube = YOUTUBE
         self.twitter = TWITEER
     
-    def create_uuid(self) -> uuid:
-        new_iden = uuid.uuid4()
-        if LOCAL_CONTENT.objects.filter(iden = new_iden).exists():
-            return self.create_uuid
-        else:
-            return new_iden
+    def testing(self):
+        self.new_facebook.post_text(text='probando')
     
     def default_post_short(self):
         try:
@@ -164,22 +161,18 @@ class MULTIPOSTAGE:
 
                     
 
-            fb_post_id = self.facebook(user_token=user_access_token, page_access_token=new_long_live_page_token, page_id=new_facebook_page_id).post_fb_video(video_url= horizontal_video_path, title=fb_title, hashtags=fb_hashtags, post_now = True)
+            fb_post_id = self.new_facebook.post_fb_video(video_url= horizontal_video_path, title=fb_title, hashtags=fb_hashtags, post_now = True)
             face_post.social_id = fb_post_id
             
             insta_post_id = self.insta(page_access_token = new_long_live_page_token, ig_account_id=ig_account_id).default_post_on_instagram(title=ig_title, local_content=horizontal_video_path, hashtags=ig_hashtags)
             
             insta_post.social_id = insta_post_id
-
-
-            
-            
             
 
             twitter_post_id = self.twitter().tweet_with_media(horizontal_video_path, twitter_title)
             twitter_post.social_id = twitter_post_id['id']
 
-            self.facebook(user_token=user_access_token, page_access_token=old_fb_page_access_token, page_id=old_faceboo_page_id).share_post_to_old_page(new_facebook_page_id,fb_post_id)
+            self.old_facebook.share_post_to_old_page(new_facebook_page_id,fb_post_id)
             
             twitter_post.save()
             yb_post.save()
@@ -203,36 +196,27 @@ class MULTIPOSTAGE:
 
     
 
-    def post_long_video_youtube(self):
+    def dwnl_post_share_new_long_yb_video(self):
         video = YOUTUBE_VIDEO_DOWNLOADED.objects.filter(downloaded = False)[0]
 
-        new_id = self.create_uuid()
         try:
-            self.youtube().download_youtube_video(new_id=new_id, video_url=video.url, get_captions = True)
+            new_local_content = self.youtube().download_youtube_video(video_url=video.url, get_captions = True)
+            video.downloaded = True
+            video.save()
+
+            yb_title = video.old_title
+            if video.new_title:
+                yb_title = video.new_title
+
+            yb_video_id = self.youtube().upload_video_youtube(local_content_related=new_local_content,post_type=1, yb_title=yb_title, privacyStatus='public')
+
+            self.repost_youtube_video(yb_title, yb_video_id)
         except Exception as e:
             print(e)
-        video.downloaded = True
-
-        title = video.old_title
-        if video.new_title:
-            title = video.new_title
-
-
-        video_posted = YOUTUBE_POST.objects.create(
-            content_related = LOCAL_CONTENT.objects.get(iden = new_id),
-            post_type = 1,
-            title = title,
-            hashtags = ,
-            emojis = ,
-            caption = ,
-            social_id = ,
-        )
-        video.save()
-        pass
         
-    
 
     def repost_youtube_video(self, yb_title, yb_video_id):
+        print('Giving time to upload the video and captions')
         time.sleep(20)        
         
         hashtags = HASHTAGS.objects.all()
@@ -258,9 +242,9 @@ class MULTIPOSTAGE:
                 facebook_post.hashtags.add(hashtag)
                 fb_hashtags.append(hashtag)
         
-        fb_post_id = self.facebook(user_token=user_access_token, page_access_token=new_long_live_page_token, page_id=new_facebook_page_id).share_youtube_video(yb_title, yb_video_id)
+        fb_post_id = self.new_facebook.share_youtube_video(yb_title, yb_video_id)
 
-        self.facebook(user_token=user_access_token, page_access_token=old_fb_page_access_token, page_id=old_faceboo_page_id).share_post_to_old_page(new_facebook_page_id,yb_video_id)
+        self.old_facebook.share_post_to_old_page(new_facebook_page_id,yb_video_id)
         
         tweeter_post_id = self.twitter().tweet_text(yb_title,tw_hashtags)
         twitter_post.social_id = tweeter_post_id
