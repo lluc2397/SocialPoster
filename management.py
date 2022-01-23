@@ -85,8 +85,8 @@ class MULTIPOSTAGE:
         try:
             short_video_path = LOCAL_CONTENT.objects.filter(main_folder = FOLDERS.objects.get(full_path = '/home/lucas/smcontent/shorts/'), published = False)[0] #devuelve un modelo
 
-            vertical_video_path = f'{short_video_path.main_folder.full_path}{short_video_path.iden}/{vertical_video_string}'
-            horizontal_video_path = f'{short_video_path.main_folder.full_path}{short_video_path.iden}/{horizontal_video_string}'
+            vertical_video_path = f'{short_video_path.local_path}{vertical_video_string}'
+            horizontal_video_path = f'{short_video_path.local_path}{horizontal_video_string}'
 
             titles = [al_title for al_title in DEFAULT_TITLES.objects.all()]
 
@@ -197,20 +197,39 @@ class MULTIPOSTAGE:
     
 
     def dwnl_post_share_new_long_yb_video(self):
-        video = YOUTUBE_VIDEO_DOWNLOADED.objects.filter(downloaded = False)[0]
+        video = YOUTUBE_VIDEO_DOWNLOADED.objects.filter(downloaded = False, has_caption=True)[0]
+        
+        print(video)
 
         try:
-            new_local_content = self.youtube().download_youtube_video(video_url=video.url, get_captions = True)
-            # video.downloaded = True
-            # video.save()
+            try:
+                print('Starting the downloading process with ',video, video.url)
+                new_local_content = self.youtube().download_youtube_video(video_url=video.url, get_captions = True)
+                video.downloaded = True
+                video.save()
+            except Exception as e:
+                print(e)
+                video.downloaded = False
+                video.save()
 
-            # yb_title = video.old_title
-            # if video.new_title:
-            #     yb_title = video.new_title
+            print('Download succesfull ', new_local_content)
+            yb_title = video.old_title
+            if video.new_title:
+                yb_title = video.new_title
 
-            # yb_video_id = self.youtube().upload_video_youtube(local_content_related=new_local_content,post_type=1, yb_title=yb_title, privacyStatus='public')
+            try:
+                print('Starting the uploading process with ', yb_title)
+                yb_video_id = self.youtube().upload_and_post_video_youtube(local_content_related=new_local_content,post_type=1, yb_title=yb_title, privacyStatus='public')
+            except Exception as e:
+                print(e)                
+                YOUTUBE_POST.objects.get(content_related = new_local_content).delete()
+                new_local_content.published = False
+                new_local_content.save()
 
-            # self.repost_youtube_video(yb_title, yb_video_id)
+            if yb_video_id is None:
+                return print('error')
+            print('Starting the repost process with ', yb_video_id)
+            self.repost_youtube_video(yb_title, yb_video_id)
         except Exception as e:
             print(e)
         
@@ -224,7 +243,7 @@ class MULTIPOSTAGE:
         facebook_post = FACEBOOK_POST.objects.create(
             is_local = False,
             post_type = 4,
-            title = yb_title)
+            caption = yb_title)
 
         twitter_post = TWITTER_POST.objects.create(
             is_local = False,
@@ -242,15 +261,18 @@ class MULTIPOSTAGE:
                 facebook_post.hashtags.add(hashtag)
                 fb_hashtags.append(hashtag)
         
+        print('Sharing the video on facebook')
         fb_post_id = self.new_facebook.share_youtube_video(yb_title, yb_video_id)
 
-        self.old_facebook.share_post_to_old_page(new_facebook_page_id,yb_video_id)
+        print('Sharing the post of the video on the old facebook profile')
+        self.old_facebook.share_post_to_old_page(new_facebook_page_id,fb_post_id['post_id'])
         
+        print('Sharing the video on twitter')
         tweeter_post_id = self.twitter().tweet_text(yb_title,tw_hashtags)
-        twitter_post.social_id = tweeter_post_id
+        twitter_post.social_id = tweeter_post_id['id']
         twitter_post.save()
 
-        facebook_post.social_id = fb_post_id
+        facebook_post.social_id = fb_post_id['post_id']
         facebook_post.save()
         
 

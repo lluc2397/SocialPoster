@@ -72,11 +72,15 @@ class LOCAL_CONTENT(models.Model):
     def __str__(self) -> str:
         return str(self.iden)
     
-    def save(self):
+    def save(self, *args, **kwargs):
         print('save')
         if self.iden is None:
             self.iden = self.create_uuid()
         return super().save(*args, **kwargs)
+    
+    @property
+    def local_path(self):
+        return f'{self.main_folder.full_path}{self.iden}/'
     
     def create_uuid(self) -> uuid:
         new_iden = uuid.uuid4()

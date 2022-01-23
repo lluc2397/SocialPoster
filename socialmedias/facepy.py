@@ -109,6 +109,10 @@ class FACEBOOK():
         if link !='':
             data['link'] = link
 
+        print ("the link...", link)
+
+        print ("the data...", data)
+
         print ("Posting file...")
         re = requests.post(f'{self.facebook_url}{self.page_id}/feed', data = data)
         print(re.content)
@@ -145,6 +149,8 @@ class FACEBOOK():
     def share_youtube_video(self,yb_title, youtube_video_id):
         print('reposting youtube video')
         url_to_share = f'https://www.youtube.com/watch?v={youtube_video_id}'
+
+        print('url_to_share', url_to_share)
 
         self.post_text(text=yb_title, link = url_to_share)
     

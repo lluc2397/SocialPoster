@@ -52,9 +52,10 @@ def main():
     if args_dict['short'] is True:
         pass
 
-from modelos.models import YOUTUBE_CHANNELS
-
+from modelos.models import LOCAL_CONTENT, YOUTUBE_POST
+from socialmedias.youpy import YOUTUBE
 if __name__ == '__main__':
     # main()
     MULTIPOSTAGE().dwnl_post_share_new_long_yb_video()
-
+    print('done')
+   
