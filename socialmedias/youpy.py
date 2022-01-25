@@ -35,6 +35,7 @@ from modelos.models import (
   FOLDERS,
   LOCAL_CONTENT,
   YOUTUBE_POST,
+  YOUTUBE_CHANNELS,
   HASHTAGS,
   DEFAULT_TITLES,
   youtube_description,
@@ -185,6 +186,7 @@ class YOUTUBE:
         status, response = insert_request.next_chunk()
         if response is not None:
           if 'id' in response:
+            print('response from resumable upload', response)
             return str(response['id'])
             
           else:
@@ -240,14 +242,21 @@ class YOUTUBE:
 
 
 
-  def parse_youtube_channel(self, channel_to_parse:str):
+  def parse_youtube_channel(self, channel_to_parse_url:str):
     """
     channel_to_parse has to be the channel's url
     """
-    channel = Channel(channel_to_parse.url)
+    channel = Channel(channel_to_parse_url)
+    channel_to_parse = YOUTUBE_CHANNELS.objects.create(
+      name = channel.channel_name,
+      url = channel_to_parse_url
+    )
     all_videos = channel.video_urls
     for video_url in (all_videos):
       self.new_video_to_parse(channel_to_parse,video_url)
+    
+    channel_to_parse.all_parsed = True
+    channel_to_parse.save()
 
     print('Channel parsed')
   
@@ -256,35 +265,44 @@ class YOUTUBE:
   def download_youtube_video(self, video_url:str, get_captions = True, is_new = False, is_english = True):
     
     try:
-        yb_long_folder = FOLDERS.objects.get_or_create(full_path = '/home/lucas/smcontent/yb-long-video/')[0]
-        print('Getting folder', yb_long_folder)
-        
-        local_content = LOCAL_CONTENT.objects.create(main_folder = yb_long_folder)
-        print('Creating local content', local_content)
+      try:
+          yb_long_folder = FOLDERS.objects.get_or_create(full_path = '/home/lucas/InvFin/smcontent/yb-longs/')[0]
+          print('Getting folder', yb_long_folder)
+          
+          local_content = LOCAL_CONTENT.objects.create(main_folder = yb_long_folder)
+          print('Creating local content', local_content)
 
-        new_dir = f'{local_content.local_path}'
-        print('Creating new directory', new_dir)
+          new_dir = f'{local_content.local_path}'
+          print('Creating new directory', new_dir)
 
-        os.mkdir(new_dir)
+          os.mkdir(new_dir)
 
-        yb_video = YouTube(video_url)
+          yb_video = YouTube(video_url)
 
-        if is_new is True:
-          self.new_video_to_parse(video_url, is_english, True)           
-        
-        print('Downloading video')
-        yb_video.streams.get_highest_resolution().download(new_dir)            
+          if is_new is True:
+            self.new_video_to_parse(video_url, is_english, True)           
+          
+          print('Downloading video')
+          yb_video.streams.get_highest_resolution().download(new_dir)
 
+      except Exception as e:
+        print(f'Error en la descarga del video {video_url} ---> {e}')
+        local_content.delete()
+        os.rmdir(f'{new_dir}')         
+      try:
         if get_captions is True:
           self.get_caption(local_content, video_url)
+      except Exception as e:
+        print(f'Error en la descarga de captios del video {video_url} ---> {e}')
+        local_content.delete()
+        os.rmdir(f'{new_dir}')
         
-        print('returning')
-        return local_content
-
+      print('returning')
+      return local_content
     except Exception as e:
-      print(f'Error en la descarga del video {video_url} ---> {e}')
-      local_content.delete()
-      os.rmdir(f'{local_content.local_path}')
+        print(f'Error en la descarga {video_url} ---> {e}')
+
+    
         
   
 
@@ -294,7 +312,10 @@ class YOUTUBE:
     options = Options()
     options.add_argument("headless")
     options.add_argument("disable-infobars")
-    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-extensions") # disabling extensions
+    options.add_argument("--no-sandbox")
+    options.add_argument("--remote-debugging-port=9222")
+    options.add_argument("--disable-dev-shm-usage") # overcome limited
     options.add_experimental_option("prefs", {
             "download.default_directory": f"{local_content.local_path}",
             "download.prompt_for_download": False,
@@ -302,8 +323,8 @@ class YOUTUBE:
             "safebrowsing_for_trusted_sources_enabled": False,
             "safebrowsing.enabled": False
     })
-    options.binary_location = '/opt/brave.com/brave/brave'
-    driver_path = '/home/lucas/Programs/chromedriver_linux64/chromedriver'
+    options.binary_location = '/snap/bin/brave'
+    driver_path = '/home/lucas/Programacion/socialmediaposter/chromedriver_linux64/chromedriver'
 
     try:
         print('starting to get captions')
@@ -342,24 +363,21 @@ class YOUTUBE:
     if post_type == 1 video is long, if post_type == 2 is short
     """
     try:
-      youtube_record = YOUTUBE_POST.objects.create(
-        content_related = local_content_related,
-        post_type = post_type,
-        is_original = is_original
-      )
+      
 
       emojis = EMOJIS.objects.all()
 
       emoji1 = random.choice(emojis)
       emoji2 = random.choice(emojis)
 
+      default_title = False
+
       if yb_title == '':
         titles = [al_title for al_title in DEFAULT_TITLES.objects.all()]
         random_yb_title = random.choice(titles)
-        youtube_record.default_title = random_yb_title
+        default_title = True       
         yb_title = random_yb_title.title
-      else:
-        youtube_record.title = yb_title
+
 
       yb_title = f'{emoji1.emoji} {yb_title}{emoji2.emoji}'
 
@@ -371,27 +389,41 @@ class YOUTUBE:
             video_path = video_dir +file
           if file.endswith('.srt'):
             captions_path = video_dir +file
-          print(f'{captions_path}')
+        print(f'{captions_path}')
       else:
         video_path = f'{video_dir}vertical-final.mp4'
         yb_title = yb_title + short_tag
 
-      youtube_record.emojis.add(emoji1)
-      youtube_record.emojis.add(emoji2)
-
-      yb_hashtags = []
-      for hashtag in HASHTAGS.objects.filter(for_yb = True):
-        youtube_record.hashtags.add(hashtag)
-        yb_hashtags.append(hashtag.name)
-      
-
+      yb_hashtags = [hashtag.name for hashtag in HASHTAGS.objects.filter(for_yb = True)]        
+          
+      print('Initialize upload')
       yb_post_id = self.initialize_upload(video_title=yb_title, video_file=video_path,  video_tags=yb_hashtags, description=youtube_description, privacyStatus=privacyStatus)
       
+      print('Initialize upload captions')
       if with_caption is True:
         self.upload_caption(yb_post_id,captions_path)
 
-      youtube_record.social_id = yb_post_id
-      youtube_record.save()
+      try:
+        print('Creating post record')
+        youtube_record = YOUTUBE_POST.objects.create(
+          content_related = local_content_related,
+          post_type = post_type,
+          is_original = is_original,
+          social_id = yb_post_id
+        )
+        youtube_record.emojis.add(emoji1)
+        youtube_record.emojis.add(emoji2)
+        for hashtag in yb_hashtags:
+          youtube_record.hashtags.add(hashtag)
+
+        if default_title is True:
+          youtube_record.default_title = random_yb_title
+        else:
+          youtube_record.title = yb_title
+        
+        youtube_record.save()
+      except Exception as e:
+        print(e)
       local_content_related.published = True
       local_content_related.save()
 

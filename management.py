@@ -7,6 +7,7 @@ import cloudinary
 import random
 import time
 from editing import create_img_from_frame
+from settings import get_keys
 
 from modelos.models import (
     EMOJIS,
@@ -38,11 +39,7 @@ horizontal_video_string = 'horizontal-final.mp4'
 
 vertical_video_string = 'vertical-final.mp4'
 
-def get_keys(name):
-    path_keys = os.path.abspath(os.path.join(os.path.dirname(__file__),'../keys.json'))
-    keys_json = open(path_keys)
-    data = json.load(keys_json)
-    return data[name]
+
 
 def desktop_notification(title, message=''):
     s.call(['notify-send', f'{title}',f'{message}'])
@@ -194,86 +191,104 @@ class MULTIPOSTAGE:
             short_video_path.published = False
             short_video_path.save()
 
-    
-
-    def dwnl_post_share_new_long_yb_video(self):
-        video = YOUTUBE_VIDEO_DOWNLOADED.objects.filter(downloaded = False, has_caption=True)[0]
-        
-        print(video)
-
+    def dwnl_post_share_new_long_yb_video(self, video=None):
         try:
-            try:
-                print('Starting the downloading process with ',video, video.url)
-                new_local_content = self.youtube().download_youtube_video(video_url=video.url, get_captions = True)
-                video.downloaded = True
-                video.save()
-            except Exception as e:
-                print(e)
-                video.downloaded = False
-                video.save()
+            if video is None:
+                video = YOUTUBE_VIDEO_DOWNLOADED.objects.filter(downloaded = False, has_caption=True)[0]
+                try:
+                    print('Starting the downloading process with ',video, video.url)
+                    local_content_related = self.youtube().download_youtube_video(video_url=video.url, get_captions = True)
+                    video.downloaded = True
+                    video.save()
+                    print('Download succesfull ', local_content_related)
+                except Exception as e:
+                    print(e)
+                    video.downloaded = False
+                    video.save()
+            else:
+                video = video
+                local_content_related = video.content_related
+            
+            print(video)
 
-            print('Download succesfull ', new_local_content)
+             
             yb_title = video.old_title
             if video.new_title:
                 yb_title = video.new_title
 
             try:
                 print('Starting the uploading process with ', yb_title)
-                yb_video_id = self.youtube().upload_and_post_video_youtube(local_content_related=new_local_content,post_type=1, yb_title=yb_title, privacyStatus='public')
+                yb_video_id = self.youtube().upload_and_post_video_youtube(local_content_related=local_content_related,post_type=1, yb_title=yb_title, privacyStatus='public')
             except Exception as e:
-                print(e)                
-                YOUTUBE_POST.objects.get(content_related = new_local_content).delete()
-                new_local_content.published = False
-                new_local_content.save()
+                print(e)
 
             if yb_video_id is None:
-                return print('error')
+                return print('error', yb_video_id)
             print('Starting the repost process with ', yb_video_id)
+            print('Giving time to upload the video and captions')
+            time.sleep(20)
             self.repost_youtube_video(yb_title, yb_video_id)
         except Exception as e:
             print(e)
         
 
-    def repost_youtube_video(self, yb_title, yb_video_id):
-        print('Giving time to upload the video and captions')
-        time.sleep(20)        
-        
+    def repost_youtube_video(self, yb_title, yb_video_id, frase_default='¿Qué opinas?'):
+        url_to_share = f'https://www.youtube.com/watch?v={yb_video_id}'
         hashtags = HASHTAGS.objects.all()
 
-        facebook_post = FACEBOOK_POST.objects.create(
-            is_local = False,
-            post_type = 4,
-            caption = yb_title)
+        default_title = DEFAULT_TITLES.objects.get_or_create(title = frase_default)[0]
 
-        twitter_post = TWITTER_POST.objects.create(
-            is_local = False,
-            post_type = 4,
-            caption = yb_title)
-        
+
         tw_hashtags = []
         fb_hashtags = []
         
         for hashtag in hashtags:
-            if hashtag.for_tw is True:
-                twitter_post.hashtags.add(hashtag)
+            if hashtag.for_tw is True:                
                 tw_hashtags.append(hashtag)
-            if hashtag.for_fb is True:
-                facebook_post.hashtags.add(hashtag)
+            if hashtag.for_fb is True:                
                 fb_hashtags.append(hashtag)
         
+        fb_title = f"""{default_title.title}
+        {yb_title}"""
+        
         print('Sharing the video on facebook')
-        fb_post_id = self.new_facebook.share_youtube_video(yb_title, yb_video_id)
-
+        fb_post_id = self.new_facebook.post_text(text=fb_title, link = url_to_share)
+        print('Video shared on facebook', fb_post_id)
         print('Sharing the post of the video on the old facebook profile')
-        self.old_facebook.share_post_to_old_page(new_facebook_page_id,fb_post_id['post_id'])
+        self.old_facebook.share_post_to_old_page(yb_title,fb_post_id['post_id'])
+
+        facebook_post = FACEBOOK_POST.objects.create(
+            is_local = False,
+            title = default_title,
+            post_type = 4,
+            caption = yb_title)
+        
+        for hashtag in fb_hashtags:
+            facebook_post.hashtags.add(hashtag)
+        facebook_post.social_id = fb_post_id['post_id']
+        facebook_post.save()
         
         print('Sharing the video on twitter')
-        tweeter_post_id = self.twitter().tweet_text(yb_title,tw_hashtags)
+
+        tw_status = f"""{fb_title}
+        {url_to_share}
+        """
+        tweeter_post_id = self.twitter().tweet_text(tw_status,tw_hashtags)
+        print('Post shared on twitter', tweeter_post_id)
+
+        twitter_post = TWITTER_POST.objects.create(
+            is_local = False,
+            default_title = default_title,
+            post_type = 4,
+            caption = tw_status)
+
+        for hashtag in tw_hashtags:
+            twitter_post.hashtags.add(hashtag)
+
         twitter_post.social_id = tweeter_post_id['id']
         twitter_post.save()
 
-        facebook_post.social_id = fb_post_id['post_id']
-        facebook_post.save()
+        
         
 
 

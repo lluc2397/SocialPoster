@@ -1,6 +1,6 @@
 import requests
 
-from management import get_keys
+from settings import get_keys
 
 tiktok_Client_Key=  get_keys('TIKTOK_CLIENT_KEY')
 

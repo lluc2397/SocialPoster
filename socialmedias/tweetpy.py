@@ -1,7 +1,7 @@
 import tweepy
 import random
 import json
-from management import get_keys
+from settings import get_keys
 
 from modelos.models import HASHTAGS
 

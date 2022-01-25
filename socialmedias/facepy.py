@@ -109,18 +109,14 @@ class FACEBOOK():
         if link !='':
             data['link'] = link
 
-        print ("the link...", link)
-
-        print ("the data...", data)
-
         print ("Posting file...")
         re = requests.post(f'{self.facebook_url}{self.page_id}/feed', data = data)
-        print(re.content)
-        print(re.json())
+
         response = {}
         if re.status_code == 200:
             response['status'] = re.status_code
-            response['post_id'] = str(re.json()['id'])            
+            response['post_id'] = str(re.json()['id'])
+            print('main response', response)       
             return response
 
         else:
@@ -139,22 +135,14 @@ class FACEBOOK():
         requests.post(f'{self.facebook_url}{self.page_id}/photos', data = data)
     
 
-    def share_post_to_old_page(self, new_page_id, post_id):
+    def share_post_to_old_page(self, yb_title, post_id):
         print('repost')
-        url_to_share = f'https://www.facebook.com/{new_page_id}/posts/{post_id}'
-
-        self.post_text(text=f'Recuerda que estamos migrando a la nueva página, no te pierdas el nuevo contenido y las sorpresas', link = url_to_share)
+        url_to_share = f'https://www.facebook.com/InversionesyFinanzas/posts/{post_id}&show_text=true'
+        self.post_text(text=f'No te pierdas el nuevo video {yb_title}', link = url_to_share)
     
 
-    def share_youtube_video(self,yb_title, youtube_video_id):
-        print('reposting youtube video')
-        url_to_share = f'https://www.youtube.com/watch?v={youtube_video_id}'
 
-        print('url_to_share', url_to_share)
-
-        self.post_text(text=yb_title, link = url_to_share)
     
-
 
     # def schedule_video_posts_on_facebook(self, year, month, day, hour, number_to_post):
     #     folders = [folder for folder in os.listdir(to_post_dir)]

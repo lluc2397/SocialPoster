@@ -1,4 +1,4 @@
-#!/home/lucas/Documents/programacion/SocialPoster/venv/bin/python3.8
+#!/home/lucas/Programacion/socialmediaposter/venv/bin/python3.8
 
 import logging
 import argparse
@@ -47,15 +47,16 @@ def main():
 
 
     if args_dict['long'] is True:
-        pass
+        MULTIPOSTAGE().dwnl_post_share_new_long_yb_video()  
+        print('done')
 
     if args_dict['short'] is True:
         pass
 
-from modelos.models import LOCAL_CONTENT, YOUTUBE_POST
+from modelos.models import LOCAL_CONTENT, YOUTUBE_POST, YOUTUBE_CHANNELS, YOUTUBE_VIDEO_DOWNLOADED, HASHTAGS, EMOJIS
 from socialmedias.youpy import YOUTUBE
 if __name__ == '__main__':
-    # main()
-    MULTIPOSTAGE().dwnl_post_share_new_long_yb_video()
-    print('done')
+    main()
+
+    
    

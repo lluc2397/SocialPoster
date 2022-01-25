@@ -73,9 +73,10 @@ class LOCAL_CONTENT(models.Model):
         return str(self.iden)
     
     def save(self, *args, **kwargs):
-        print('save')
+        print(self.iden)
         if self.iden is None:
             self.iden = self.create_uuid()
+            print('save iden:', self.iden)
         return super().save(*args, **kwargs)
     
     @property
@@ -133,7 +134,8 @@ class TWITTER_POST(models.Model):
     content_related = models.ForeignKey(LOCAL_CONTENT, null = True, blank=True, on_delete=models.SET_NULL)
     post_type = models.IntegerField(null=True, blank=True,choices=POST_TYPE)    
     is_original = models.BooleanField(default=False)    
-    date_posted = models.DateTimeField(auto_now_add=True, null = True)    
+    date_posted = models.DateTimeField(auto_now_add=True, null = True)   
+    default_title = models.ForeignKey(DEFAULT_TITLES,null = True, blank=True, on_delete=models.SET_NULL) 
     hashtags = models.ManyToManyField(HASHTAGS, blank=True)
     emojis = models.ManyToManyField(EMOJIS, blank=True)
     caption = models.TextField(default='')
@@ -180,7 +182,7 @@ class YOUTUBE_VIDEO_DOWNLOADED(models.Model):
     downloaded = models.BooleanField(default=False)
     has_caption = models.BooleanField(default=False)
     download_date = models.DateTimeField(auto_now_add=True, null = True)
-    post_related = models.ForeignKey(YOUTUBE_POST, null = True, blank=True, on_delete=models.SET_NULL)
+    content_related = models.ForeignKey(LOCAL_CONTENT, null = True, blank=True, on_delete=models.SET_NULL)
 
     def __str__(self) -> str:
         return str(self.old_title)
