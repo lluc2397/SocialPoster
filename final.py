@@ -1,4 +1,4 @@
-#!/home/lucas/Programacion/socialmediaposter/venv/bin/python3.8
+#!/home/lucas/Programacion/socialmediaposter/venv/bin/python
 
 import logging
 import argparse
@@ -12,12 +12,10 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
 import django
 django.setup()
 
-from socialmedias.youpy import YOUTUBE
+logging.basicConfig(filename='./problemas.log', level=logging.WARNING)
 
-logging.basicConfig(filename='problemas.log', level=logging.WARNING)
-
-from management import MULTIPOSTAGE
-
+from management import MULTIPOSTAGE,desktop_notification
+from modelos.models import LOCAL_CONTENT, YOUTUBE_VIDEO_DOWNLOADED, FACEBOOK_POST
 """
 
 Descargar y publicar directamten los videos con subtítulos en Youtube. Compartir el link del video en Face y Twitter.
@@ -43,20 +41,27 @@ def main():
     args_dict = vars(parser.parse_args())
 
     if all(value is False for value in list(args_dict.values())):
+        desktop_notification('Nop')
         parser.error("It's necessary to select at least one social media")
 
 
     if args_dict['long'] is True:
-        MULTIPOSTAGE().dwnl_post_share_new_long_yb_video()  
-        print('done')
+        files = os.listdir('/home/lucas/InvFin/smcontent/yb-longs')
+        video_posted = False
+        for file in files:
+            ls = LOCAL_CONTENT.objects.get(iden = file)
+            if ls.published is False:
+                video = YOUTUBE_VIDEO_DOWNLOADED.objects.get(content_related = ls)
+                MULTIPOSTAGE().dwnl_post_share_new_long_yb_video(video)
+                video_posted = True
+                break
+        
+        if video_posted is False:
+            MULTIPOSTAGE().dwnl_post_share_new_long_yb_video()
 
     if args_dict['short'] is True:
         pass
 
-from modelos.models import LOCAL_CONTENT, YOUTUBE_POST, YOUTUBE_CHANNELS, YOUTUBE_VIDEO_DOWNLOADED, HASHTAGS, EMOJIS
-from socialmedias.youpy import YOUTUBE
+
 if __name__ == '__main__':
     main()
-
-    
-   

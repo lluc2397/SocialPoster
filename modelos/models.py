@@ -73,10 +73,8 @@ class LOCAL_CONTENT(models.Model):
         return str(self.iden)
     
     def save(self, *args, **kwargs):
-        print(self.iden)
         if self.iden is None:
             self.iden = self.create_uuid()
-            print('save iden:', self.iden)
         return super().save(*args, **kwargs)
     
     @property
@@ -181,6 +179,7 @@ class YOUTUBE_VIDEO_DOWNLOADED(models.Model):
     original_channel = models.ForeignKey(YOUTUBE_CHANNELS, null = True, blank=True, on_delete=models.SET_NULL)
     downloaded = models.BooleanField(default=False)
     has_caption = models.BooleanField(default=False)
+    captions_downloaded = models.BooleanField(default=False)
     download_date = models.DateTimeField(auto_now_add=True, null = True)
     content_related = models.ForeignKey(LOCAL_CONTENT, null = True, blank=True, on_delete=models.SET_NULL)
 

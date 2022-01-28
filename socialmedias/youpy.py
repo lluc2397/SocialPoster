@@ -49,7 +49,7 @@ translator = google_translator()
                                   
 vertical_video_string = 'vertical-final.mp4'
 
-
+logging.basicConfig(filename='./problemas.log', level=logging.WARNING)
 # date = datetime.datetime(year, month, day,hour,minute)
 # yb_date = date.strftime("%Y-%m-%dT%H:%M:%S")
 
@@ -262,21 +262,20 @@ class YOUTUBE:
   
 
 
-  def download_youtube_video(self, video_url:str, get_captions = True, is_new = False, is_english = True):
+  def download_youtube_video(self, video, get_captions = True, is_new = False, is_english = True):
     
     try:
       try:
           yb_long_folder = FOLDERS.objects.get_or_create(full_path = '/home/lucas/InvFin/smcontent/yb-longs/')[0]
-          print('Getting folder', yb_long_folder)
           
           local_content = LOCAL_CONTENT.objects.create(main_folder = yb_long_folder)
-          print('Creating local content', local_content)
-
+          video.content_related = local_content
+          video.save()
           new_dir = f'{local_content.local_path}'
-          print('Creating new directory', new_dir)
 
           os.mkdir(new_dir)
 
+          video_url = video.url
           yb_video = YouTube(video_url)
 
           if is_new is True:
@@ -286,16 +285,14 @@ class YOUTUBE:
           yb_video.streams.get_highest_resolution().download(new_dir)
 
       except Exception as e:
-        print(f'Error en la descarga del video {video_url} ---> {e}')
+        print(f'Error en la descarga del video {video} ---> {e}')
         local_content.delete()
         os.rmdir(f'{new_dir}')         
       try:
         if get_captions is True:
-          self.get_caption(local_content, video_url)
+          self.get_caption(local_content, video)
       except Exception as e:
-        print(f'Error en la descarga de captios del video {video_url} ---> {e}')
-        local_content.delete()
-        os.rmdir(f'{new_dir}')
+        print(f'Error en la descarga de captios del video {video} ---> {e}')
         
       print('returning')
       return local_content
@@ -307,29 +304,33 @@ class YOUTUBE:
   
 
 
-  def get_caption(self, local_content, video_url:str):
+  def get_caption(self, local_content, video):
     # Opciones de navegación
     options = Options()
     options.add_argument("headless")
     options.add_argument("disable-infobars")
     options.add_argument("--disable-extensions") # disabling extensions
     options.add_argument("--no-sandbox")
-    options.add_argument("--remote-debugging-port=9222")
+    # options.add_argument("--remote-debugging-port=9230")
     options.add_argument("--disable-dev-shm-usage") # overcome limited
     options.add_experimental_option("prefs", {
-            "download.default_directory": f"{local_content.local_path}",
+            "download.default_directory": f"{local_content.local_path[:-1]}",
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing_for_trusted_sources_enabled": False,
             "safebrowsing.enabled": False
     })
-    options.binary_location = '/snap/bin/brave'
-    driver_path = '/home/lucas/Programacion/socialmediaposter/chromedriver_linux64/chromedriver'
+    # options.binary_location = '/snap/bin/brave'
+    # driver_path = '/home/lucas/Programacion/socialmediaposter/chromedriver_linux64/chromedriver'
 
     try:
         print('starting to get captions')
+        
+        video_url = video.url
         url = f'https://savesubs.com/process?url={video_url}'
-        driver = webdriver.Chrome( executable_path = driver_path, options=options)
+       
+        driver = webdriver.Chrome( executable_path = '/snap/bin/chromium.chromedriver', options=options)
+        
         driver.get(url)
 
         time.sleep(5)
@@ -351,11 +352,23 @@ class YOUTUBE:
 
         button.click()
         time.sleep(1)
+        driver.stop_client()
         driver.close()
+        
+        driver.quit()
+        video.captions_downloaded = True
+        video.save()
+        print('captions saved')
+        
     except Exception as e:
-        print(f'Error en la descarga de captions del video {video_url} ---> {e}')
-        local_content.delete()
-        os.rmdir(f'{local_content.local_path}')
+        print(f'Error desde captions eror video {url} ---> {e}')
+        driver.stop_client()
+        driver.close()
+        driver.quit()
+        
+        
+        
+        
 
 
   def upload_and_post_video_youtube(self,local_content_related,post_type:int, yb_title='',is_original=False, with_caption=True,privacyStatus='public'):
@@ -369,6 +382,7 @@ class YOUTUBE:
 
       emoji1 = random.choice(emojis)
       emoji2 = random.choice(emojis)
+      emoji3 = random.choice(emojis)
 
       default_title = False
 
@@ -379,17 +393,19 @@ class YOUTUBE:
         yb_title = random_yb_title.title
 
 
-      yb_title = f'{emoji1.emoji} {yb_title}{emoji2.emoji}'
+      yb_title = f'{emoji1.emoji} {yb_title}{emoji2.emoji} en ESPAÑOL {emoji3.emoji}(sub)'
 
       video_dir = f'{local_content_related.local_path}'
 
       if post_type == 1:
+        
         for file in os.listdir(video_dir):
+          print(file)
           if file.endswith('.mp4'):
             video_path = video_dir +file
           if file.endswith('.srt'):
             captions_path = video_dir +file
-        print(f'{captions_path}')
+        print(f'captions_path --> {captions_path}')
       else:
         video_path = f'{video_dir}vertical-final.mp4'
         yb_title = yb_title + short_tag
@@ -413,7 +429,9 @@ class YOUTUBE:
         )
         youtube_record.emojis.add(emoji1)
         youtube_record.emojis.add(emoji2)
-        for hashtag in yb_hashtags:
+        youtube_record.emojis.add(emoji3)
+
+        for hashtag in HASHTAGS.objects.filter(for_yb = True):
           youtube_record.hashtags.add(hashtag)
 
         if default_title is True:

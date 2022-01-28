@@ -30,3 +30,49 @@ DATABASES = {
         'PORT': '5432',
     }
 }
+
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'formatters': {
+#         'verbose': {
+#             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+#             'style': '{',
+#         },
+#         'simple': {
+#             'format': '{levelname} {message}',
+#             'style': '{',
+#         },
+#     },
+#     'handlers': {  
+#         'file': {
+#             'level': 'DEBUG',
+#             'class': 'logging.FileHandler',
+#             'filename': './problemas.log',
+#             'formatter': 'verbose',
+#         },
+#         'console': {
+#             'class': 'logging.StreamHandler',
+#             'level': 'DEBUG',
+#         },   
+        
+#         # 'mail_admins': {
+#         #     'level': 'ERROR',
+#         #     'class': 'django.utils.log.AdminEmailHandler',
+#         #     'filters': ['special']
+#         # }
+#     },
+#     'loggers': {
+#         # 'django': {
+#         #     'handlers': ['file', 'console'],
+#         #     'level': 'DEBUG',
+#         #     'propagate': True,
+#         # },
+#         'screenerlog':{
+#             'handlers': ['file'],
+#             'level': 'DEBUG',
+#             'propagate': True,
+            
+#         }
+#     }
+# }

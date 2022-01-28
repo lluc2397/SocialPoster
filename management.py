@@ -6,6 +6,8 @@ import uuid
 import cloudinary
 import random
 import time
+import logging 
+
 from editing import create_img_from_frame
 from settings import get_keys
 
@@ -60,7 +62,7 @@ new_facebook_page_id = '105836681984738'
 
 new_long_live_page_token = get_keys('NEW_FB_PAGE_ACCESS_TOKEN')
 
-
+logging.basicConfig(filename='./problemas.log', level=logging.WARNING)
 
 class MULTIPOSTAGE:
     def __init__(self) -> None:
@@ -179,7 +181,7 @@ class MULTIPOSTAGE:
             short_video_path.published = True
             short_video_path.save()
 
-            desktop_notification('Shorts', 'Posted successfully')
+            
             return short_video_path
             
         except Exception as e:
@@ -197,12 +199,12 @@ class MULTIPOSTAGE:
                 video = YOUTUBE_VIDEO_DOWNLOADED.objects.filter(downloaded = False, has_caption=True)[0]
                 try:
                     print('Starting the downloading process with ',video, video.url)
-                    local_content_related = self.youtube().download_youtube_video(video_url=video.url, get_captions = True)
+                    local_content_related = self.youtube().download_youtube_video(video=video, get_captions = True)
                     video.downloaded = True
                     video.save()
                     print('Download succesfull ', local_content_related)
                 except Exception as e:
-                    print(e)
+                    print('error desde managmenet al descargar',e)
                     video.downloaded = False
                     video.save()
             else:
@@ -253,9 +255,14 @@ class MULTIPOSTAGE:
         
         print('Sharing the video on facebook')
         fb_post_id = self.new_facebook.post_text(text=fb_title, link = url_to_share)
-        print('Video shared on facebook', fb_post_id)
-        print('Sharing the post of the video on the old facebook profile')
-        self.old_facebook.share_post_to_old_page(yb_title,fb_post_id['post_id'])
+        print('Video shared on facebook, waiting a few seconds to let it process', fb_post_id)
+        time.sleep(15)
+        try:
+            fb_post_id_repost = fb_post_id['post_id'].split('_')[1]
+            print('Sharing the post of the video on the old facebook profile')
+            self.old_facebook.share_post_to_old_page(yb_title,fb_post_id_repost)
+        except Exception as e:
+            print(e)
 
         facebook_post = FACEBOOK_POST.objects.create(
             is_local = False,
