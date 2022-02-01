@@ -1,4 +1,3 @@
-from turtle import pos
 import tweepy
 import random
 import json
@@ -82,7 +81,7 @@ class TWITEER:
     def default_image_tweet(self,local_content, media_url):
         default_tweet = self.default_tweet_status()
 
-        twitter_post = default_tweet['twitter_post']
+        twitter_post = default_tweet['twitter_post_model']
         status = default_tweet['tw_status']
 
         post_id = self.tweet_with_media(media_url, status=status)

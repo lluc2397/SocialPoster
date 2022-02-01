@@ -101,6 +101,8 @@ class LOCAL_CONTENT(models.Model):
     reused = models.BooleanField(default=False)
     reusable = models.BooleanField(default=False)
     original_local = models.UUIDField(null = True)
+    has_consistent_error = models.BooleanField(default=False)
+    error_msg = models.TextField(default='')
 
     def __str__(self) -> str:
         return str(self.iden)

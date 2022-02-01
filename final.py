@@ -53,11 +53,15 @@ def main():
         video_posted = False
         for file in files:
             ls = LOCAL_CONTENT.objects.get(iden = file)
-            if ls.published is False:
+            if ls.published is False and ls.has_consistent_error is False:
                 video = YOUTUBE_VIDEO_DOWNLOADED.objects.get(content_related = ls)
-                MULTIPOSTAGE().dwnl_post_share_new_long_yb_video(video)
+
+                dwnl_process= MULTIPOSTAGE().dwnl_post_share_new_long_yb_video(video)
                 video_posted = True
-                break
+                if dwnl_process == 'captions-error':
+                    continue                    
+                else:
+                    break
         
         if video_posted is False:
             MULTIPOSTAGE().dwnl_post_share_new_long_yb_video()

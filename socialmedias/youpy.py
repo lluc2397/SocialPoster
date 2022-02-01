@@ -1,19 +1,17 @@
 import httplib2
 import os
 import random
-import shutil
+
 import datetime
 import time
 import logging
-import sys
 
-from apiclient.discovery import build_from_document
 from apiclient.discovery import build
 from apiclient.errors import HttpError
 from apiclient.http import MediaFileUpload
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.file import Storage
-from oauth2client.tools import argparser, run_flow
+from oauth2client.tools import run_flow
 
 # Explicitly tell the underlying HTTP transport library not to retry, since
 # we are handling retry logic ourselves.
@@ -315,7 +313,7 @@ class YOUTUBE:
     # options.add_argument("--remote-debugging-port=9230")
     options.add_argument("--disable-dev-shm-usage") # overcome limited
     options.add_experimental_option("prefs", {
-            "download.default_directory": f"{local_content.local_path[:-1]}",
+            "download.default_directory": f"{local_content.local_path}",
             "download.prompt_for_download": False,
             "download.directory_upgrade": True,
             "safebrowsing_for_trusted_sources_enabled": False,
@@ -362,11 +360,15 @@ class YOUTUBE:
         print('captions saved')
         
     except Exception as e:
-        hora = datetime.datetime.now()
-        print(f'Error {hora} desde captions eror video {url} ---> {e}')
-        driver.stop_client()
-        driver.close()
-        driver.quit()
+      hora = datetime.datetime.now()
+      print(f'Error {hora} desde captions error video {url} ---> {e}')
+      local_content.has_consistent_error = True
+      local_content.error_msg = e
+      local_content.save()
+      driver.stop_client()
+      driver.close()
+      driver.quit()
+      return 'captions-error'
         
         
         
@@ -407,7 +409,8 @@ class YOUTUBE:
             video_path = video_dir +file
           if file.endswith('.srt'):
             captions_path = video_dir +file
-        print(f'captions_path --> {captions_path}')
+        if captions_path is None:
+          return 'no captions'
       else:
         video_path = f'{video_dir}vertical-final.mp4'
         yb_title = yb_title + short_tag

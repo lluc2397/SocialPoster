@@ -212,11 +212,7 @@ class MULTIPOSTAGE:
                 local_content_related = video.content_related
                 if video.captions_downloaded is False:
                     self.youtube().get_caption(local_content_related, video)
-                
-            
-            print(video)
-
-             
+                    
             yb_title = video.old_title
             if video.new_title:
                 yb_title = video.new_title
@@ -225,16 +221,18 @@ class MULTIPOSTAGE:
                 print('Starting the uploading process with ', yb_title)
                 yb_video_id = self.youtube().upload_and_post_video_youtube(local_content_related=local_content_related,post_type=1, yb_title=yb_title, privacyStatus='public')
             except Exception as e:
-                print(e)
+                return print(e)
 
             if yb_video_id is None:
-                return print('error', yb_video_id)
+                print('error yb_video_id', yb_video_id)
+                return yb_video_id
+
             print('Starting the repost process with ', yb_video_id)
             print('Giving time to upload the video and captions')
             time.sleep(20)
             self.repost_youtube_video(yb_title, yb_video_id)
         except Exception as e:
-            print(e)
+            return print(e)
         
 
     def repost_youtube_video(self, yb_title, yb_video_id, frase_default=''):
