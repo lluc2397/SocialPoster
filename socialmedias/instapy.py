@@ -1,20 +1,16 @@
 import requests
-import datetime
 import time
-import random
 import os
 
 import cloudinary.uploader
 
 from editing import create_img_from_frame
 
+from modelos.models import DEFAULT_TITLES,INSTAGRAM_POST,HASHTAGS
+
 horizontal_video_string = 'horizontal-final.mp4'
 
 FACEBOOK_MAIN_URL = 'https://graph.facebook.com/'
-
-
-from modelos.models import HASHTAGS, DEFAULT_TITLES, INSTAGRAM_POST
-
 
 class INSTAGRAM():
     def __init__(self, user_access_token='' ,page_access_token='', ig_account_id=''):
@@ -174,11 +170,12 @@ class INSTAGRAM():
         if caption == '':
             caption = self.create_ig_caption(caption, hashtags)
 
-        if image_url == "":
-            post_id = self.pre_post_ig(caption, video_url, upload_cloudinary = upload_cloudinary)
-        
-        else:
-            post_id = self.pre_post_ig(caption, image_url, media_type = 'IMAGE', upload_cloudinary = upload_cloudinary)
+        if upload_cloudinary is True:
+            if image_url == "":
+                post_id = self.pre_post_ig(caption, video_url, upload_cloudinary = upload_cloudinary)
+            
+            else:
+                post_id = self.pre_post_ig(caption, image_url, media_type = 'IMAGE', upload_cloudinary = upload_cloudinary)
         
         ig_post_id = post_id['ig_post_id']
 
@@ -219,14 +216,27 @@ class INSTAGRAM():
     
 
 
-    def default_post_on_instagram(self, title:str, local_content:str, hashtags:list):
+    def default_post_on_instagram(self, local_content,image_url):
+        list_hashtags = HASHTAGS.objects.random_ig_hashtags
+
+        hashtags = ' '.join([hashtag.name for hashtag in list_hashtags])
         
-        hashtags = ' '.join(hashtags)
+        title = DEFAULT_TITLES.objects.random_title
+            
 
-        new_image = create_img_from_frame(local_content)
-        ig_cap = self.create_ig_caption(title, hashtags)
+        ig_cap = self.create_ig_caption(title.title, hashtags)
 
-        ig_id = self.post_ig(ig_cap, image_url = new_image)
+        ig_id = self.post_ig(ig_cap, image_url = image_url)
+
+        ig_post = INSTAGRAM_POST.objects.create(
+            content_related = local_content,
+            post_type = 2,
+            title = title,
+            social_id = ig_id,
+        )
+
+        for hashtag in list_hashtags:
+            ig_post.hashtags.add(hashtag)
 
         return ig_id
 

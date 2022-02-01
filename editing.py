@@ -7,14 +7,18 @@ import os
 
 
 
-def resize_images(image_full_path, size, image, path_to):
-    imgagen_origianl = cv2.imread(image_full_path)
+def resize_image(image_full_path, final_path, top =0, bottom=0, delete_old = False):
+    imagen_original = cv2.imread(image_full_path)
 
-    imagen_recortada = imgagen_origianl[0:-size]
+    imagen_recortada = imagen_original[top:-bottom]
 
-    final_image_path = f'{path_to}/{image}'
-   
-    cv2.imwrite(final_image_path, imagen_recortada)    
+    final_image_path = f'{final_path}resized-image.jpg'
+
+    cv2.imwrite(final_image_path, imagen_recortada)
+
+    if delete_old is True:
+        os.remove(image_full_path)
+        print('Image deleted')
 
     return final_image_path
 

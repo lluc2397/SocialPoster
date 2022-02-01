@@ -8,7 +8,7 @@ import random
 import time
 import logging 
 
-from editing import create_img_from_frame
+from editing import resize_image
 from settings import get_keys
 
 from modelos.models import (
@@ -73,9 +73,9 @@ class MULTIPOSTAGE:
 
         self.new_facebook = FACEBOOK(user_token=user_access_token, page_access_token=new_long_live_page_token, page_id=new_facebook_page_id)
         self.old_facebook = FACEBOOK(user_token=user_access_token, page_access_token=old_fb_page_access_token, page_id=old_faceboo_page_id)
-        self.insta = INSTAGRAM
+        self.insta = INSTAGRAM(user_access_token=user_access_token ,page_access_token=new_long_live_page_token, ig_account_id=ig_account_id)
         self.youtube = YOUTUBE
-        self.twitter = TWITEER
+        self.twitter = TWITEER()
     
     def testing(self):
         self.new_facebook.post_text(text='probando')
@@ -210,6 +210,9 @@ class MULTIPOSTAGE:
             else:
                 video = video
                 local_content_related = video.content_related
+                if video.captions_downloaded is False:
+                    self.youtube().get_caption(local_content_related, video)
+                
             
             print(video)
 
@@ -234,11 +237,17 @@ class MULTIPOSTAGE:
             print(e)
         
 
-    def repost_youtube_video(self, yb_title, yb_video_id, frase_default='¿Qué opinas?'):
+    def repost_youtube_video(self, yb_title, yb_video_id, frase_default=''):
         url_to_share = f'https://www.youtube.com/watch?v={yb_video_id}'
         hashtags = HASHTAGS.objects.all()
 
-        default_title = DEFAULT_TITLES.objects.get_or_create(title = frase_default)[0]
+        query_default_titles = DEFAULT_TITLES.objects
+        if frase_default == '':
+            all_count = query_default_titles.all().count()
+            num = random.randint(1, all_count-1)
+            default_title = query_default_titles.get(id = num)
+        else:
+            default_title = query_default_titles.get_or_create(title = frase_default)[0]
 
 
         tw_hashtags = []
@@ -294,8 +303,39 @@ class MULTIPOSTAGE:
 
         twitter_post.social_id = tweeter_post_id['id']
         twitter_post.save()
+    
+
+    def create_post_image(self):
+        name,top,bottom = 'frases', 0, 122
+        if random.randint(1,2) == 1:
+            name,top,bottom = 'logos', 58, 5
+        
+        original_folder = FOLDERS.objects.get(name = name)
+        images_av = os.listdir(original_folder.full_path)[0]
+
+        image_path = f'{original_folder.full_path}{images_av}'
+        if image_path.endswith('.jpg') is False:
+            image_path = f'{image_path}/{images_av}.jpg'
+
+        final_folder = FOLDERS.objects.get(name = 'resized images')
+
+        local_content = LOCAL_CONTENT.objects.create(
+            main_folder = final_folder,
+            is_video = False,
+            is_img = True,
+            reusable = True
+        )
+
+        final_path = local_content.create_dir()
+
+        resized_image = resize_image(image_path, final_path, top, bottom, delete_old = True)
+        
+        self.insta.default_post_on_instagram(local_content, resized_image)
+        self.twitter.default_image_tweet(local_content, resized_image)
 
         
+        local_content.published = True
+        local_content.save()
         
 
 

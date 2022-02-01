@@ -15,7 +15,10 @@ django.setup()
 logging.basicConfig(filename='./problemas.log', level=logging.WARNING)
 
 from management import MULTIPOSTAGE,desktop_notification
-from modelos.models import LOCAL_CONTENT, YOUTUBE_VIDEO_DOWNLOADED, FACEBOOK_POST
+from modelos.models import (
+    LOCAL_CONTENT,
+    YOUTUBE_VIDEO_DOWNLOADED,
+    INSTAGRAM_POST)
 """
 
 Descargar y publicar directamten los videos con subtítulos en Youtube. Compartir el link del video en Face y Twitter.
@@ -60,8 +63,8 @@ def main():
             MULTIPOSTAGE().dwnl_post_share_new_long_yb_video()
 
     if args_dict['short'] is True:
-        pass
-
+        MULTIPOSTAGE().create_post_image()
 
 if __name__ == '__main__':
     main()
+    

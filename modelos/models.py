@@ -1,6 +1,8 @@
 
 import sys
 import uuid
+import os
+import random
 
 try:
     from django.db import models
@@ -31,6 +33,23 @@ multiplicar tu dinero
 analizar una empresa
 """
 
+class TitlesManager(models.Manager):
+    @property
+    def random_title(self):
+        titles = [al_title for al_title in DEFAULT_TITLES.objects.all()]
+        return random.choice(titles)
+
+class HashtagsManager(models.Manager):
+    @property
+    def random_ig_hashtags(self):
+        hashtags = [hashtag for hashtag in HASHTAGS.objects.filter(for_ig = True)]
+        return hashtags
+    
+    @property
+    def random_tw_hashtags(self):
+        hashtags = [hashtag for hashtag in HASHTAGS.objects.filter(for_tw = True)]
+        return hashtags
+
 
 class HASHTAGS(models.Model):        
     name = models.TextField(default='')
@@ -39,6 +58,7 @@ class HASHTAGS(models.Model):
     for_ig = models.BooleanField(default=False)
     for_tw = models.BooleanField(default=False)
     for_yb = models.BooleanField(default=False)
+    objects = HashtagsManager()
 
     def __str__(self) -> str:
         return str(self.name)
@@ -53,21 +73,34 @@ class EMOJIS(models.Model):
 
 class DEFAULT_TITLES(models.Model):
     title = models.TextField(default='')
+    objects = TitlesManager()
 
     def __str__(self) -> str:
-        return str(self.title)
+        return str(self.title)    
+    
 
 class FOLDERS(models.Model):
+    name = models.CharField(max_length=1000,default='')
     full_path = models.TextField(default='')
 
     def __str__(self) -> str:
         return str(self.full_path)
+    
+    def save(self, *args, **kwargs):
+        if self.full_path.endswith('/') is False:
+            self.full_path = self.full_path + '/'
+        return super().save(*args, **kwargs)
 
 
 class LOCAL_CONTENT(models.Model):
     iden = models.UUIDField(null = True, unique=True)
     main_folder = models.ForeignKey(FOLDERS, null = True, blank=True, on_delete=models.SET_NULL)
     published = models.BooleanField(default=False)
+    is_video = models.BooleanField(default=True)
+    is_img = models.BooleanField(default=False)
+    reused = models.BooleanField(default=False)
+    reusable = models.BooleanField(default=False)
+    original_local = models.UUIDField(null = True)
 
     def __str__(self) -> str:
         return str(self.iden)
@@ -87,6 +120,10 @@ class LOCAL_CONTENT(models.Model):
             return self.create_uuid()
         else:
             return new_iden
+    
+    def create_dir(self):
+        os.mkdir(self.local_path)
+        return str(self.local_path)
 
 
 class FACEBOOK_POST(models.Model):

@@ -311,6 +311,7 @@ class YOUTUBE:
     options.add_argument("disable-infobars")
     options.add_argument("--disable-extensions") # disabling extensions
     options.add_argument("--no-sandbox")
+    options.add_argument("--disable-gpu")
     # options.add_argument("--remote-debugging-port=9230")
     options.add_argument("--disable-dev-shm-usage") # overcome limited
     options.add_experimental_option("prefs", {
@@ -320,8 +321,8 @@ class YOUTUBE:
             "safebrowsing_for_trusted_sources_enabled": False,
             "safebrowsing.enabled": False
     })
-    # options.binary_location = '/snap/bin/brave'
-    # driver_path = '/home/lucas/Programacion/socialmediaposter/chromedriver_linux64/chromedriver'
+    # options.binary_location = '/snap/bin/chromium.chromedriver'
+    driver_path = '/snap/chromium/1878/usr/lib/chromium-browser/chromedriver'
 
     try:
         print('starting to get captions')
@@ -329,7 +330,7 @@ class YOUTUBE:
         video_url = video.url
         url = f'https://savesubs.com/process?url={video_url}'
        
-        driver = webdriver.Chrome( executable_path = '/snap/bin/chromium.chromedriver', options=options)
+        driver = webdriver.Chrome( executable_path = driver_path, options=options)
         
         driver.get(url)
 
@@ -361,7 +362,8 @@ class YOUTUBE:
         print('captions saved')
         
     except Exception as e:
-        print(f'Error desde captions eror video {url} ---> {e}')
+        hora = datetime.datetime.now()
+        print(f'Error {hora} desde captions eror video {url} ---> {e}')
         driver.stop_client()
         driver.close()
         driver.quit()
