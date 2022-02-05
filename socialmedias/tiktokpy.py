@@ -1,10 +1,10 @@
 import requests
 
-from settings import get_keys
+from settings import Motdepasse
 
-tiktok_Client_Key=  get_keys('TIKTOK_CLIENT_KEY')
+tiktok_Client_Key=  Motdepasse().get_keys('TIKTOK_CLIENT_KEY')
 
-tiktok_Client_Secret= get_keys('TIKTOK_CLIENT_SECRET')
+tiktok_Client_Secret= Motdepasse().get_keys('TIKTOK_CLIENT_SECRET')
 
 class TIKTOK():
     def __init__(self, client_key, client_secret):

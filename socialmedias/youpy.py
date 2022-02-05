@@ -1,7 +1,7 @@
 import httplib2
 import os
 import random
-
+import sys
 import datetime
 import time
 import logging
@@ -18,7 +18,6 @@ from oauth2client.tools import run_flow
 httplib2.RETRIES = 1
 
 from pytube import YouTube, Channel
-
 
 
 from selenium import webdriver
@@ -47,7 +46,7 @@ translator = google_translator()
                                   
 vertical_video_string = 'vertical-final.mp4'
 
-logging.basicConfig(filename='./problemas.log', level=logging.WARNING)
+logger = logging.getLogger('longs')
 # date = datetime.datetime(year, month, day,hour,minute)
 # yb_date = date.strftime("%Y-%m-%dT%H:%M:%S")
 
@@ -184,7 +183,6 @@ class YOUTUBE:
         status, response = insert_request.next_chunk()
         if response is not None:
           if 'id' in response:
-            print('response from resumable upload', response)
             return str(response['id'])
             
           else:
@@ -211,91 +209,90 @@ class YOUTUBE:
 
 
   def new_video_to_parse(self,channel_to_parse, video_url, is_english = True, downloaded = False):
-    try:
-      yb_video = YouTube(video_url)
 
-      has_caption = False
+    yb_video = YouTube(video_url)
 
-      if yb_video.captions:
-        has_caption = True
+    has_caption = False
+
+    if yb_video.captions:
+      has_caption = True
+    
+    old_title = yb_video.title
+    new_title = ''
+
+    if is_english is True:        
+      new_title = translator.translate(old_title, lang_src='en', lang_tgt='es')
+
+    new_video = YOUTUBE_VIDEO_DOWNLOADED.objects.create(
+    url = video_url,
+    original_channel = channel_to_parse,
+    old_title = old_title,
+    new_title = new_title,
+    downloaded = downloaded,
+    has_caption = has_caption
+    )
+    return new_video
       
-      old_title = yb_video.title
-      new_title = ''
-
-      if is_english is True:        
-        new_title = translator.translate(old_title, lang_src='en', lang_tgt='es')
-
-      new_video = YOUTUBE_VIDEO_DOWNLOADED.objects.create(
-      url = video_url,
-      original_channel = channel_to_parse,
-      old_title = old_title,
-      new_title = new_title,
-      downloaded = downloaded,
-      has_caption = has_caption
-      )
-
-      return new_video
-    except Exception as e:
-      logging.error(f'Error al parse el video {video_url} ---> {e}')
 
 
 
-  def parse_youtube_channel(self, channel_to_parse_url:str):
+
+  def parse_youtube_channel(self, channel_to_parse_url:str, keep_scraping = True):
     """
     channel_to_parse has to be the channel's url
     """
     channel = Channel(channel_to_parse_url)
     channel_to_parse = YOUTUBE_CHANNELS.objects.create(
       name = channel.channel_name,
-      url = channel_to_parse_url
+      url = channel_to_parse_url,
+      keep_scraping= keep_scraping,
     )
     all_videos = channel.video_urls
+
     for video_url in (all_videos):
       self.new_video_to_parse(channel_to_parse,video_url)
+
     
     channel_to_parse.all_parsed = True
     channel_to_parse.save()
 
-    print('Channel parsed')
+    print(f'Channel: {channel_to_parse} parsed')
   
 
 
   def download_youtube_video(self, video, get_captions = True, is_new = False, is_english = True):
+  
+    yb_long_folder = FOLDERS.objects.get_or_create(full_path = '/home/lucas/InvFin/smcontent/yb-longs/')[0]
     
+    local_content = LOCAL_CONTENT.objects.create(main_folder = yb_long_folder)
+    video.content_related = local_content
+    video.save()
+    new_dir = f'{local_content.local_path}'
+
+    os.mkdir(new_dir)
+
+    video_url = video.url
+    yb_video = YouTube(video_url)
+
+    if is_new is True:
+      self.new_video_to_parse(video_url, is_english, True)           
     try:
-      try:
-          yb_long_folder = FOLDERS.objects.get_or_create(full_path = '/home/lucas/InvFin/smcontent/yb-longs/')[0]
-          
-          local_content = LOCAL_CONTENT.objects.create(main_folder = yb_long_folder)
-          video.content_related = local_content
-          video.save()
-          new_dir = f'{local_content.local_path}'
+      print('Downloading video')
+      yb_video.streams.get_highest_resolution().download(new_dir)
 
-          os.mkdir(new_dir)
+    except Exception as e:        
+      local_content.delete()
+      os.rmdir(f'{new_dir}')
+      logger.error(f'Error en la descarga del video {video} ---> {e}')
 
-          video_url = video.url
-          yb_video = YouTube(video_url)
-
-          if is_new is True:
-            self.new_video_to_parse(video_url, is_english, True)           
-          
-          print('Downloading video')
-          yb_video.streams.get_highest_resolution().download(new_dir)
-
-      except Exception as e:
-        print(f'Error en la descarga del video {video} ---> {e}')
-        local_content.delete()
-        os.rmdir(f'{new_dir}')         
-      try:
-        if get_captions is True:
-          self.get_caption(local_content, video)
-      except Exception as e:
-        print(f'Error en la descarga de captios del video {video} ---> {e}')
-        
-      print('returning')
+    else:
+      if get_captions is True:
+        try:
+          self.get_caption(local_content, video)         
+        except Exception as e:
+          logger.error(f'Error en la descarga de captios del video {video} ---> {e}')
+      
       return local_content
-    except Exception as e:
-        print(f'Error en la descarga {video_url} ---> {e}')
 
     
         
@@ -321,47 +318,46 @@ class YOUTUBE:
     })
     # options.binary_location = '/snap/bin/chromium.chromedriver'
     driver_path = '/snap/chromium/1878/usr/lib/chromium-browser/chromedriver'
-
     try:
-        print('starting to get captions')
-        
-        video_url = video.url
-        url = f'https://savesubs.com/process?url={video_url}'
-       
-        driver = webdriver.Chrome( executable_path = driver_path, options=options)
-        
-        driver.get(url)
+      print('starting to get captions')
+      
+      video_url = video.url
+      url = f'https://savesubs.com/process?url={video_url}'
+      
+      driver = webdriver.Chrome( executable_path = driver_path, options=options)
+      
+      driver.get(url)
 
-        time.sleep(5)
+      time.sleep(5)
 
-        select_element = driver.find_element_by_name('slang')
-        select_object = Select(select_element)
-        select_object.select_by_value('en')
+      select_element = driver.find_element_by_name('slang')
+      select_object = Select(select_element)
+      select_object.select_by_value('en')
 
-        select_element = driver.find_element_by_name('tlang')
-        select_object = Select(select_element)
-        select_object.select_by_value('es')
+      select_element = driver.find_element_by_name('tlang')
+      select_object = Select(select_element)
+      select_object.select_by_value('es')
 
-        select_element = driver.find_element_by_name('ext')
-        select_object = Select(select_element)
-        select_object.select_by_value('srt')
-        # select_object.select_by_value('txt')
+      select_element = driver.find_element_by_name('ext')
+      select_object = Select(select_element)
+      select_object.select_by_value('srt')
+      # select_object.select_by_value('txt')
 
-        button = driver.find_element_by_xpath('/html/body/main/section/main/section[3]/section/div[2]/div/form/button')
+      button = driver.find_element_by_xpath('/html/body/main/section/main/section[3]/section/div[2]/div/form/button')
 
-        button.click()
-        time.sleep(1)
-        driver.stop_client()
-        driver.close()
-        
-        driver.quit()
-        video.captions_downloaded = True
-        video.save()
-        print('captions saved')
+      button.click()
+      time.sleep(1)
+      driver.stop_client()
+      driver.close()
+      
+      driver.quit()
+      video.captions_downloaded = True
+      video.save()
+      print('captions saved')
         
     except Exception as e:
       hora = datetime.datetime.now()
-      print(f'Error {hora} desde captions error video {url} ---> {e}')
+      logger.error(f'Error {hora} desde captions error video {url} ---> {e}')
       local_content.has_consistent_error = True
       local_content.error_msg = e
       local_content.save()
@@ -369,6 +365,9 @@ class YOUTUBE:
       driver.close()
       driver.quit()
       return 'captions-error'
+    
+    else:
+      return 'captions-correct'
         
         
         
@@ -379,78 +378,89 @@ class YOUTUBE:
     """
     if post_type == 1 video is long, if post_type == 2 is short
     """
+
+    emojis = EMOJIS.objects.all()
+
+    emoji1 = random.choice(emojis)
+    emoji2 = random.choice(emojis)
+    emoji3 = random.choice(emojis)
+
+    default_title = False
+
+    if yb_title == '':
+      titles = [al_title for al_title in DEFAULT_TITLES.objects.all()]
+      random_yb_title = random.choice(titles)
+      default_title = True       
+      yb_title = random_yb_title.title
+
+
+    yb_title = f'{emoji1.emoji} {yb_title}{emoji2.emoji} en ESPAÑOL {emoji3.emoji}(sub)'
+
+    video_dir = f'{local_content_related.local_path}'
+
+    if post_type == 1:
+      captions_path = None   
+      for file in os.listdir(video_dir):
+
+        if file.endswith('.mp4'):
+          video_path = video_dir +file
+
+        if file.endswith('.srt'):
+          captions_path = video_dir +file
+
+      if captions_path is None:
+        logger.error(f'No captions')
+        return 'no-captions'
+
+    else:
+      video_path = f'{video_dir}vertical-final.mp4'
+      yb_title = yb_title + short_tag
+
+    yb_hashtags = [hashtag.name for hashtag in HASHTAGS.objects.filter(for_yb = True)]        
+
     try:
-      
-
-      emojis = EMOJIS.objects.all()
-
-      emoji1 = random.choice(emojis)
-      emoji2 = random.choice(emojis)
-      emoji3 = random.choice(emojis)
-
-      default_title = False
-
-      if yb_title == '':
-        titles = [al_title for al_title in DEFAULT_TITLES.objects.all()]
-        random_yb_title = random.choice(titles)
-        default_title = True       
-        yb_title = random_yb_title.title
-
-
-      yb_title = f'{emoji1.emoji} {yb_title}{emoji2.emoji} en ESPAÑOL {emoji3.emoji}(sub)'
-
-      video_dir = f'{local_content_related.local_path}'
-
-      if post_type == 1:
-        
-        for file in os.listdir(video_dir):
-          print(file)
-          if file.endswith('.mp4'):
-            video_path = video_dir +file
-          if file.endswith('.srt'):
-            captions_path = video_dir +file
-        if captions_path is None:
-          return 'no captions'
-      else:
-        video_path = f'{video_dir}vertical-final.mp4'
-        yb_title = yb_title + short_tag
-
-      yb_hashtags = [hashtag.name for hashtag in HASHTAGS.objects.filter(for_yb = True)]        
-          
       print('Initialize upload')
       yb_post_id = self.initialize_upload(video_title=yb_title, video_file=video_path,  video_tags=yb_hashtags, description=youtube_description, privacyStatus=privacyStatus)
+    except Exception as e:
+      logger.error(f'Error when uploading--> {e} ')
       
-      print('Initialize upload captions')
-      if with_caption is True:
-        self.upload_caption(yb_post_id,captions_path)
-
-      try:
-        print('Creating post record')
-        youtube_record = YOUTUBE_POST.objects.create(
-          content_related = local_content_related,
-          post_type = post_type,
-          is_original = is_original,
-          social_id = yb_post_id
-        )
-        youtube_record.emojis.add(emoji1)
-        youtube_record.emojis.add(emoji2)
-        youtube_record.emojis.add(emoji3)
-
-        for hashtag in HASHTAGS.objects.filter(for_yb = True):
-          youtube_record.hashtags.add(hashtag)
-
-        if default_title is True:
-          youtube_record.default_title = random_yb_title
-        else:
-          youtube_record.title = yb_title
-        
-        youtube_record.save()
-      except Exception as e:
-        print(e)
+      return 'error-uploading-video'
+    else:
       local_content_related.published = True
       local_content_related.save()
 
-      return yb_post_id
+      print('Initialize upload captions')
+      if with_caption is True:
+        try:
+          self.upload_caption(yb_post_id,captions_path)
+        except Exception as e:
+          logger.error(f'Error when uploading captions--> {e} ')
+          
+          sys.exit()
+        else:
 
-    except Exception as e:
-      print(e)
+          try:
+            print('Creating post record')
+            youtube_record = YOUTUBE_POST.objects.create(
+            content_related = local_content_related,
+            post_type = post_type,
+            is_original = is_original,
+            social_id = yb_post_id
+            )
+            youtube_record.emojis.add(emoji1)
+            youtube_record.emojis.add(emoji2)
+            youtube_record.emojis.add(emoji3)
+
+            for hashtag in HASHTAGS.objects.filter(for_yb = True):
+              youtube_record.hashtags.add(hashtag)
+
+            if default_title is True:
+              youtube_record.default_title = random_yb_title
+            else:
+              youtube_record.title = yb_title
+
+              youtube_record.save()
+          except Exception as e:
+            logger.error(f'Error when creating record')
+          else:
+            return yb_post_id

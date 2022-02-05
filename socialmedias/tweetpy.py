@@ -1,7 +1,7 @@
 import tweepy
 import random
 import json
-from settings import get_keys
+from settings import Motdepasse
 
 from modelos.models import HASHTAGS, DEFAULT_TITLES, TWITTER_POST
 
@@ -11,10 +11,10 @@ site = 'https://inversionesyfinanzas.xyz'
 
 class TWITEER:
     def __init__(self) -> None:
-        self.CONSUMER_KEY = get_keys('consumer_key')
-        self.CONSUMER_SECRET = get_keys('consumer_secret')
-        self.ACCESS_TOKEN = get_keys('access_token')
-        self.ACCESS_TOKEN_SECRET = get_keys('access_token_secret')
+        self.CONSUMER_KEY = Motdepasse().get_keys('consumer_key')
+        self.CONSUMER_SECRET = Motdepasse().get_keys('consumer_secret')
+        self.ACCESS_TOKEN = Motdepasse().get_keys('access_token')
+        self.ACCESS_TOKEN_SECRET = Motdepasse().get_keys('access_token_secret')
     
 
     def do_authenticate(self):

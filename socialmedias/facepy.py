@@ -1,6 +1,9 @@
 from numpy import random
 import requests
+import sys
+import logging
 import datetime
+from settings import Motdepasse
 
 from modelos.models import HASHTAGS, DEFAULT_TITLES
 
@@ -8,22 +11,35 @@ horizontal_video_string = 'horizontal-final.mp4'
 
 FACEBOOK_MAIN_URL = 'https://graph.facebook.com/'
 
+# old_faceboo_page_id = '107326904530301'
+# app_id = '607951806946136'
+# new_facebook_page_id = '105836681984738'
+
+logger = logging.getLogger('longs')
 
 class FACEBOOK():
-    def __init__(self, user_token='', page_access_token='', page_id=''):
+    def __init__(self, user_token='', 
+    app_id = '', app_secret=Motdepasse().get_keys('FACEBOOK_APP_SECRET'), 
+    long_lived_user_token=Motdepasse().get_keys('FB_USER_ACCESS_TOKEN'), 
+    page_access_token='', 
+    page_id=''):
+
         self.page_id = page_id
         self.user_token = user_token
+        self.app_id = app_id
+        self.app_secret = app_secret
+        self.long_lived_user_token = long_lived_user_token
         self.page_access_token = page_access_token
         self.facebook_url = FACEBOOK_MAIN_URL
         self.facebook_video_url = "https://graph-video.facebook.com/"
     
-    def get_long_live_user_token(self, app_id, app_secret):
+    def get_long_live_user_token(self):
         url = f'{self.facebook_url}oauth/access_token'
 
         parameters = {
             'grant_type':'fb_exchange_token',
-            'client_id' : app_id,
-            'client_secret' : app_secret,
+            'client_id' : self.app_id,
+            'client_secret' : self.app_secret,
             'fb_exchange_token' : self.user_token
         }
 
@@ -31,25 +47,27 @@ class FACEBOOK():
 
         if re.status_code == 200:
             token = str(re.json()['access_token'])
-            print(token)
-    
-    
+            Motdepasse().change_key_value('FB_USER_ACCESS_TOKEN', token)
+            return token
     
 
-    def get_long_live_page_token(self):
+    def get_long_live_page_token(self, old=False):
         url = f'{self.facebook_url}{self.page_id}'
 
         parameters = {
             'fields':'access_token',
-            'access_token' : self.user_token
+            'access_token' : self.long_lived_user_token
         }
 
         re = requests.get(url, params=parameters)
 
         if re.status_code == 200:
             token = str(re.json()['access_token'])
-            print(token)
-
+            if old is False:
+                Motdepasse().change_key_value('NEW_FB_PAGE_ACCESS_TOKEN', token)
+            else:
+                Motdepasse().change_key_value('OLD_FB_PAGE_ACCESS_TOKEN', token)
+            return token
 
     
     def post_fb_video(self, description= "" ,video_url= "", title= "", post_time='',hashtags=[], post_now = False):
@@ -80,20 +98,7 @@ class FACEBOOK():
                 'description': description
             }
 
-        print ("Posting file on facebook...")
-        re = requests.post(f'{self.facebook_video_url}{self.page_id}/videos',files=files, data = data)
-        
-        response = {}
-        if re.status_code == 200:
-            response['status'] = re.status_code
-            response['vid_id'] = str(re.json()['id'])            
-            return response
-
-        else:
-            print(re)
-            print(re.content)
-            print(re.json())
-
+        return self.post_content('video', data, files)
 
     
     def post_text(self, text= "", post_time= "", post_now = True, link=''):
@@ -109,20 +114,7 @@ class FACEBOOK():
         if link !='':
             data['link'] = link
 
-        print ("Posting file...")
-        re = requests.post(f'{self.facebook_url}{self.page_id}/feed', data = data)
-
-        response = {}
-        if re.status_code == 200:
-            response['status'] = re.status_code
-            response['post_id'] = str(re.json()['id'])
-            print('main response', response)       
-            return response
-
-        else:
-            print(re)
-            print(re.content)
-            print(re.json())
+        return self.post_content('text', data)
 
 
 
@@ -131,12 +123,32 @@ class FACEBOOK():
             'access_token': self.page_access_token,
             'url': photo_url
         }
+        return self.post_content('image', data)
+        
+    
+
+    def post_content(self, type:str, content, files = None):
         print ("Posting file...")
-        requests.post(f'{self.facebook_url}{self.page_id}/photos', data = data)
+        if type == 'video':
+            re = requests.post(f'{self.facebook_video_url}{self.page_id}/videos',files=files, data = content)
+        if type == 'text':
+            re = requests.post(f'{self.facebook_url}{self.page_id}/feed', data = content)
+        if type == 'image':
+            re = requests.post(f'{self.facebook_url}{self.page_id}/photos', data = content)        
+        
+        response = {}
+        if re.status_code == 200:
+            response['status'] = re.status_code
+            response['post_id'] = str(re.json()['id'])            
+            return response
+        
+        elif re.json()['error']['code'] == 190:
+            logger.error('Need new user token')
+            
+            sys.exit()
     
 
     def share_post_to_old_page(self, yb_title, post_id):
-        print('repost')
         url_to_share = f'https://www.facebook.com/InversionesyFinanzas/posts/{post_id}&show_text=true'
         self.post_text(text=f'No te pierdas el nuevo video {yb_title}', link = url_to_share)
     

@@ -1,15 +1,13 @@
 
 import subprocess as s
 import os
-import json
-import uuid
 import cloudinary
 import random
 import time
 import logging 
-
+import sys
 from editing import resize_image
-from settings import get_keys
+from settings import Motdepasse
 
 from modelos.models import (
     EMOJIS,
@@ -41,28 +39,27 @@ horizontal_video_string = 'horizontal-final.mp4'
 
 vertical_video_string = 'vertical-final.mp4'
 
-
+logger = logging.getLogger('longs')
 
 def desktop_notification(title, message=''):
     s.call(['notify-send', f'{title}',f'{message}'])
 
 cloudinary.config( 
   cloud_name = "inversionesfinanzas", 
-  api_key = get_keys('CLOUDINARY_API_KEY'), 
-  api_secret = get_keys('CLOUDINARY_SECRET'),
+  api_key = Motdepasse().get_keys('CLOUDINARY_API_KEY'), 
+  api_secret = Motdepasse().get_keys('CLOUDINARY_SECRET'),
   secure = True
 )
 
-old_fb_page_access_token = get_keys('OLD_FB_PAGE_ACCESS_TOKEN')
-user_access_token = get_keys('FB_USER_ACCESS_TOKEN')
+old_fb_page_access_token = Motdepasse().get_keys('OLD_FB_PAGE_ACCESS_TOKEN')
+user_access_token = Motdepasse().get_keys('FB_USER_ACCESS_TOKEN')
 
 old_faceboo_page_id = '107326904530301'
 
 new_facebook_page_id = '105836681984738'
 
-new_long_live_page_token = get_keys('NEW_FB_PAGE_ACCESS_TOKEN')
+new_long_live_page_token = Motdepasse().get_keys('NEW_FB_PAGE_ACCESS_TOKEN')
 
-logging.basicConfig(filename='./problemas.log', level=logging.WARNING)
 
 class MULTIPOSTAGE:
     def __init__(self) -> None:
@@ -77,123 +74,8 @@ class MULTIPOSTAGE:
         self.youtube = YOUTUBE
         self.twitter = TWITEER()
     
-    def testing(self):
-        self.new_facebook.post_text(text='probando')
-    
-    def default_post_short(self):
-        try:
-            short_video_path = LOCAL_CONTENT.objects.filter(main_folder = FOLDERS.objects.get(full_path = '/home/lucas/smcontent/shorts/'), published = False)[0] #devuelve un modelo
 
-            vertical_video_path = f'{short_video_path.local_path}{vertical_video_string}'
-            horizontal_video_path = f'{short_video_path.local_path}{horizontal_video_string}'
-
-            titles = [al_title for al_title in DEFAULT_TITLES.objects.all()]
-
-            # num_of_emojis = random.randint(0,5)
-
-            emojis = EMOJIS.objects.all()
-
-            emoji1 = random.choice(emojis)
-            emoji2 = random.choice(emojis)
-
-            ig_title = random.choice(titles)
-            
-            fb_title = random.choice(titles)
-            twitter_title = random.choice(titles)
-
-            insta_post = INSTAGRAM_POST.objects.create(
-                content_related = short_video_path,
-                post_type = 2,
-                title = ig_title           
-            )
-
-            face_post = FACEBOOK_POST.objects.create(
-                content_related = short_video_path,
-                post_type = 7,
-                title = fb_title,
-            )
-
-            yb_post = YOUTUBE_POST.objects.create(
-                content_related = short_video_path,
-                post_type = 2,
-                title = yb_title,
-                
-                        )
-
-            twitter_post = TWITTER_POST.objects.create(
-                content_related = short_video_path,
-                post_type = 1,
-                        )
-
-            insta_post.emojis.add(emoji1)
-            insta_post.emojis.add(emoji2)
-            face_post.emojis.add(emoji1)
-            face_post.emojis.add(emoji2)
-            
-            twitter_post.emojis.add(emoji1)
-            twitter_post.emojis.add(emoji2)
-
-            ig_title = f'{emoji1.emoji} {ig_title.title}{emoji2.emoji}'
-            
-            fb_title = f'{emoji1.emoji} {fb_title.title}{emoji2.emoji}'
-            twitter_title = f'{emoji1.emoji} {twitter_title.title}{emoji2.emoji}'
-
-            twitter_post.caption = twitter_title
-
-            ig_hashtags = []
-            
-            fb_hashtags = []
-            twitter_hashtags = []
-
-            for hashtag in HASHTAGS.objects.all():
-                if hashtag.for_fb is True:
-                    face_post.hashtags.add(hashtag)
-                    fb_hashtags.append(hashtag.name)
-
-                if hashtag.for_ig is True:
-                    insta_post.hashtags.add(hashtag)
-                    ig_hashtags.append(hashtag.name)
-
-                if hashtag.for_tw is True:
-                    twitter_post.hashtags.add(hashtag)
-                    twitter_hashtags.append(hashtag.name)
-
-                    
-
-            fb_post_id = self.new_facebook.post_fb_video(video_url= horizontal_video_path, title=fb_title, hashtags=fb_hashtags, post_now = True)
-            face_post.social_id = fb_post_id
-            
-            insta_post_id = self.insta(page_access_token = new_long_live_page_token, ig_account_id=ig_account_id).default_post_on_instagram(title=ig_title, local_content=horizontal_video_path, hashtags=ig_hashtags)
-            
-            insta_post.social_id = insta_post_id
-            
-
-            twitter_post_id = self.twitter().tweet_with_media(horizontal_video_path, twitter_title)
-            twitter_post.social_id = twitter_post_id['id']
-
-            self.old_facebook.share_post_to_old_page(new_facebook_page_id,fb_post_id)
-            
-            twitter_post.save()
-            yb_post.save()
-            face_post.save()
-            insta_post.save()
-
-            short_video_path.published = True
-            short_video_path.save()
-
-            
-            return short_video_path
-            
-        except Exception as e:
-            print(e)
-            twitter_post.delete()
-            yb_post.delete()
-            face_post.delete()
-            insta_post.delete()
-            short_video_path.published = False
-            short_video_path.save()
-
-    def dwnl_post_share_new_long_yb_video(self, video=None):
+    def share_new_long_yb_video(self, video):
         try:
             if video is None:
                 video = YOUTUBE_VIDEO_DOWNLOADED.objects.filter(downloaded = False, has_caption=True)[0]
@@ -217,15 +99,12 @@ class MULTIPOSTAGE:
             if video.new_title:
                 yb_title = video.new_title
 
-            try:
-                print('Starting the uploading process with ', yb_title)
-                yb_video_id = self.youtube().upload_and_post_video_youtube(local_content_related=local_content_related,post_type=1, yb_title=yb_title, privacyStatus='public')
-            except Exception as e:
-                return print(e)
+            print('Starting the uploading process with ', yb_title)
+            yb_video_id = self.youtube().upload_and_post_video_youtube(local_content_related=local_content_related,post_type=1, yb_title=yb_title, privacyStatus='public')
+          
 
-            if yb_video_id is None:
-                print('error yb_video_id', yb_video_id)
-                return yb_video_id
+            if yb_video_id == 'no-captions':                
+                return 'no-captions'
 
             print('Starting the repost process with ', yb_video_id)
             print('Giving time to upload the video and captions')
@@ -287,7 +166,7 @@ class MULTIPOSTAGE:
         tw_status = f"""{fb_title}
         {url_to_share}
         """
-        tweeter_post_id = self.twitter().tweet_text(tw_status,tw_hashtags)
+        tweeter_post_id = self.twitter.tweet_text(tw_status,tw_hashtags)
         print('Post shared on twitter', tweeter_post_id)
 
         twitter_post = TWITTER_POST.objects.create(
