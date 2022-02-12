@@ -4,23 +4,22 @@ import os
 import cloudinary
 import random
 import time
-import logging 
-import sys
-from editing import resize_image
+import logging
+from editing import resize_image, joint_video_audio, convert_pictures_to_video
 from settings import Motdepasse
 
 from modelos.models import (
-    EMOJIS,
+    
     DEFAULT_TITLES,
     LOCAL_CONTENT,
     FOLDERS,
     HASHTAGS,
     FACEBOOK_POST,
-    YOUTUBE_POST,
+    
     TWITTER_POST,
-    INSTAGRAM_POST,
+    
     YOUTUBE_VIDEO_DOWNLOADED,
-    youtube_description
+    
 )
 
 ig_account_id = '17841444650537865'
@@ -41,8 +40,9 @@ vertical_video_string = 'vertical-final.mp4'
 
 logger = logging.getLogger('longs')
 
-def desktop_notification(title, message=''):
-    s.call(['notify-send', f'{title}',f'{message}'])
+logo = '/home/lucas/InvFin/images/LOGO/logo FB Inversiones y finanzas.png'
+def desktop_notification(title, message='', duration=1, img_path=logo):
+    s.Popen(["notify-send",f"{title}", f"{message}", "-t",f"{(duration * 1000)}", "-i", f"{img_path}"])
 
 cloudinary.config( 
   cloud_name = "inversionesfinanzas", 
@@ -75,43 +75,58 @@ class MULTIPOSTAGE:
         self.twitter = TWITEER()
     
 
+    def default_information(self):
+        default_title = ''
+        default_hashtags = []
+        default_emojis = []
+
+        default_info = {}
+
+        return default_info
+    
+
     def share_new_long_yb_video(self, video):
-        try:
-            if video is None:
-                video = YOUTUBE_VIDEO_DOWNLOADED.objects.filter(downloaded = False, has_caption=True)[0]
-                try:
-                    print('Starting the downloading process with ',video, video.url)
-                    local_content_related = self.youtube().download_youtube_video(video=video, get_captions = True)
-                    video.downloaded = True
-                    video.save()
-                    print('Download succesfull ', local_content_related)
-                except Exception as e:
-                    print('error desde managmenet al descargar',e)
-                    video.downloaded = False
-                    video.save()
-            else:
-                video = video
-                local_content_related = video.content_related
-                if video.captions_downloaded is False:
-                    self.youtube().get_caption(local_content_related, video)
-                    
-            yb_title = video.old_title
-            if video.new_title:
-                yb_title = video.new_title
 
-            print('Starting the uploading process with ', yb_title)
-            yb_video_id = self.youtube().upload_and_post_video_youtube(local_content_related=local_content_related,post_type=1, yb_title=yb_title, privacyStatus='public')
-          
+        if video is None:
+            video = YOUTUBE_VIDEO_DOWNLOADED.objects.filter(downloaded = False, has_caption=True)[0]
+            try:
+                logger.info(f'Starting the downloading process with {video}')
+                local_content_related = self.youtube().download_youtube_video(video=video, get_captions = True)
+                video.downloaded = True
+                video.save()
+                logger.info(f'Download succesfull {local_content_related}')
+            except Exception as e:
+                logger.error(f'error desde managmenet al descargar {e}')
+                video.downloaded = False
+                video.save()
+                return 'error' 
+        else:
+            video = video
+            local_content_related = video.content_related
+            if video.captions_downloaded is False:
+                self.youtube().get_caption(local_content_related, video)
+                
+        yb_title = video.old_title
+        if video.new_title:
+            yb_title = video.new_title
 
-            if yb_video_id == 'no-captions':                
-                return 'no-captions'
+        logger.info(f'Starting the uploading process with {yb_title}')
+        yb_video_id = self.youtube().upload_and_post_video_youtube(local_content_related=local_content_related,post_type=1, yb_title=yb_title, privacyStatus='public')
+        
 
-            print('Starting the repost process with ', yb_video_id)
-            print('Giving time to upload the video and captions')
-            time.sleep(20)
-            self.repost_youtube_video(yb_title, yb_video_id)
-        except Exception as e:
-            return print(e)
+        if yb_video_id == 'no-captions':                
+            return 'error'
+        
+        if yb_video_id == 'error-uploading-video':                
+            return 'error'
+
+        logger.info(f'Starting the repost process with {yb_video_id}')
+        logger.info('Giving time to upload the video and captions')
+        time.sleep(20)
+        repost = self.repost_youtube_video(yb_title, yb_video_id)
+
+        if repost == 'success':
+            return 'success'
         
 
     def repost_youtube_video(self, yb_title, yb_video_id, frase_default=''):
@@ -139,16 +154,16 @@ class MULTIPOSTAGE:
         fb_title = f"""{default_title.title}
         {yb_title}"""
         
-        print('Sharing the video on facebook')
+        logger.info('Sharing the video on facebook')
         fb_post_id = self.new_facebook.post_text(text=fb_title, link = url_to_share)
-        print('Video shared on facebook, waiting a few seconds to let it process', fb_post_id)
+        logger.info(f'Video shared on facebook, waiting a few seconds to let it process {fb_post_id}')
         time.sleep(15)
         try:
             fb_post_id_repost = fb_post_id['post_id'].split('_')[1]
-            print('Sharing the post of the video on the old facebook profile')
+            logger.info('Sharing the post of the video on the old facebook profile')
             self.old_facebook.share_post_to_old_page(yb_title,fb_post_id_repost)
         except Exception as e:
-            print(e)
+            logger.info(e)
 
         facebook_post = FACEBOOK_POST.objects.create(
             is_local = False,
@@ -161,13 +176,13 @@ class MULTIPOSTAGE:
         facebook_post.social_id = fb_post_id['post_id']
         facebook_post.save()
         
-        print('Sharing the video on twitter')
+        logger.info('Sharing the video on twitter')
 
         tw_status = f"""{fb_title}
         {url_to_share}
         """
         tweeter_post_id = self.twitter.tweet_text(tw_status,tw_hashtags)
-        print('Post shared on twitter', tweeter_post_id)
+        logger.info('Post shared on twitter')
 
         twitter_post = TWITTER_POST.objects.create(
             is_local = False,
@@ -180,6 +195,8 @@ class MULTIPOSTAGE:
 
         twitter_post.social_id = tweeter_post_id['id']
         twitter_post.save()
+
+        return 'success'
     
 
     def create_post_image(self):
@@ -213,6 +230,40 @@ class MULTIPOSTAGE:
         
         local_content.published = True
         local_content.save()
+    
+
+    def create_post_short(self):
+        
+        folder = '/home/lucas/InvFin/smcontent/shorts-videos/'
+        carpeta = FOLDERS.objects.get_or_create(name = 'shorts',full_path = folder)[0]
+
+        local_content = LOCAL_CONTENT.objects.filter(
+            published = True,
+            is_img = True,
+            reusable = True)[0]
+        
+
+        new_content = LOCAL_CONTENT.objects.create(
+            main_folder = carpeta,
+            is_video = True,
+            reused = True,
+            original_local = local_content.iden,
+        )
+        
+        
+        image = local_content.local_path + 'resized-image.jpg'
+        new_dir = new_content.create_dir()
+        
+        fps = random.randint(25, 33)
+        duration = random.randint(25, 33)
+        new_video = convert_pictures_to_video(new_dir, image, fps, duration)
+        final_short = joint_video_audio("/home/lucas/smcontent/musicfiles/", new_video, new_dir)
+
+        yb_video = self.youtube().upload_and_post_video_youtube(new_content,post_type=2, with_caption=False)
+        self.twitter.default_short_tweet(new_content, final_short)
+
+        return 'success'
+        
         
 
 

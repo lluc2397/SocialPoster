@@ -39,6 +39,16 @@ class TitlesManager(models.Manager):
         titles = [al_title for al_title in DEFAULT_TITLES.objects.all()]
         return random.choice(titles)
 
+
+class EmojiManager(models.Manager):
+    @property
+    def random_emojis(self):
+        emojidict = {}
+        for i, emoji in enumerate(EMOJIS.objects.all()[:3]):
+            emojidict[f'emoji{i}'] = emoji
+        return emojidict
+
+
 class HashtagsManager(models.Manager):
     @property
     def random_ig_hashtags(self):
@@ -66,6 +76,7 @@ class HASHTAGS(models.Model):
 
 class EMOJIS(models.Model):
     emoji= models.TextField(default='')
+    objects = EmojiManager()
 
     def __str__(self) -> str:
         return str(self.emoji)

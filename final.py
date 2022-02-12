@@ -60,8 +60,7 @@ def main():
                 
                 result = MULTIPOSTAGE().share_new_long_yb_video(video)
                 
-                if result == 'no-captions':
-                    logger.error('Error desde final.py')
+                if result != 'success':
                     ls.has_consistent_error = True
                     ls.save()
                     continue
@@ -79,9 +78,16 @@ def main():
         #         sys.exit()
             
 
-    if args_dict['short'] is True:
+    if args_dict['img'] is True:
         MULTIPOSTAGE().create_post_image()
+    
+    if args_dict['short'] is True:
+        MULTIPOSTAGE().create_post_short()
+    
+    if args_dict['test'] is True:
+        MULTIPOSTAGE().test()
 
+from socialmedias.youpy import YOUTUBE
 if __name__ == '__main__':
     main()
     

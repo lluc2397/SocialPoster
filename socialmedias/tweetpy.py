@@ -90,3 +90,17 @@ class TWITEER:
         twitter_post.post_type = 6
         twitter_post.social_id = post_id['id']
         twitter_post.save()
+    
+
+    def default_short_tweet(self,local_content, media_url):
+        default_tweet = self.default_tweet_status()
+
+        twitter_post = default_tweet['twitter_post_model']
+        status = default_tweet['tw_status']
+
+        post_id = self.tweet_with_media(media_url, status=status)
+
+        twitter_post.content_related = local_content
+        twitter_post.post_type = 5
+        twitter_post.social_id = post_id['id']
+        twitter_post.save()

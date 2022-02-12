@@ -11,10 +11,6 @@ horizontal_video_string = 'horizontal-final.mp4'
 
 FACEBOOK_MAIN_URL = 'https://graph.facebook.com/'
 
-# old_faceboo_page_id = '107326904530301'
-# app_id = '607951806946136'
-# new_facebook_page_id = '105836681984738'
-
 logger = logging.getLogger('longs')
 
 class FACEBOOK():
@@ -143,14 +139,13 @@ class FACEBOOK():
             return response
         
         elif re.json()['error']['code'] == 190:
-            logger.error('Need new user token')
-            
+            logger.error('Need new user token')            
             sys.exit()
     
 
     def share_post_to_old_page(self, yb_title, post_id):
         url_to_share = f'https://www.facebook.com/InversionesyFinanzas/posts/{post_id}&show_text=true'
-        self.post_text(text=f'No te pierdas el nuevo video {yb_title}', link = url_to_share)
+        self.post_text(text=f'No te pierdas el último post {yb_title}', link = url_to_share)
     
 
 

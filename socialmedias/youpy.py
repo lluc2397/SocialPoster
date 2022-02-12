@@ -317,7 +317,7 @@ class YOUTUBE:
             "safebrowsing.enabled": False
     })
     # options.binary_location = '/snap/bin/chromium.chromedriver'
-    driver_path = '/snap/chromium/1878/usr/lib/chromium-browser/chromedriver'
+    driver_path = '/usr/lib/chromium-browser/chromedriver'
     try:
       print('starting to get captions')
       
@@ -437,30 +437,33 @@ class YOUTUBE:
           logger.error(f'Error when uploading captions--> {e} ')
           
           sys.exit()
+
+      try:
+        print('Creating post record')
+        youtube_record = YOUTUBE_POST.objects.create(
+        content_related = local_content_related,
+        post_type = post_type,
+        is_original = is_original,
+        social_id = yb_post_id
+        )
+        youtube_record.emojis.add(emoji1)
+        youtube_record.emojis.add(emoji2)
+        youtube_record.emojis.add(emoji3)
+
+        for hashtag in HASHTAGS.objects.filter(for_yb = True):
+          youtube_record.hashtags.add(hashtag)
+
+        if default_title is True:
+          youtube_record.default_title = random_yb_title
         else:
+          youtube_record.title = yb_title
 
-          try:
-            print('Creating post record')
-            youtube_record = YOUTUBE_POST.objects.create(
-            content_related = local_content_related,
-            post_type = post_type,
-            is_original = is_original,
-            social_id = yb_post_id
-            )
-            youtube_record.emojis.add(emoji1)
-            youtube_record.emojis.add(emoji2)
-            youtube_record.emojis.add(emoji3)
+          youtube_record.save()
+      except Exception as e:
+        logger.error(f'Error when creating record')
+        return 'error'
+      else:
+        return yb_post_id
 
-            for hashtag in HASHTAGS.objects.filter(for_yb = True):
-              youtube_record.hashtags.add(hashtag)
 
-            if default_title is True:
-              youtube_record.default_title = random_yb_title
-            else:
-              youtube_record.title = yb_title
 
-              youtube_record.save()
-          except Exception as e:
-            logger.error(f'Error when creating record')
-          else:
-            return yb_post_id
