@@ -1,5 +1,5 @@
 
-import subprocess as s
+
 import os
 import cloudinary
 import random
@@ -39,10 +39,6 @@ horizontal_video_string = 'horizontal-final.mp4'
 vertical_video_string = 'vertical-final.mp4'
 
 logger = logging.getLogger('longs')
-
-logo = '/home/lucas/InvFin/images/LOGO/logo FB Inversiones y finanzas.png'
-def desktop_notification(title, message='', duration=1, img_path=logo):
-    s.Popen(["notify-send",f"{title}", f"{message}", "-t",f"{(duration * 1000)}", "-i", f"{img_path}"])
 
 cloudinary.config( 
   cloud_name = "inversionesfinanzas", 

@@ -1,8 +1,6 @@
-
-import sys
 import uuid
 import os
-import random
+import sys
 
 try:
     from django.db import models
@@ -10,7 +8,13 @@ except Exception:
     print('Exception: Django Not Found, please install it with "pip install django".')
     sys.exit()
 
-
+from modelos.manager import (
+    TitlesManager,
+    HashtagsManager,
+    EmojiManager,
+    ContentManager,
+    FoldersManager
+)
 youtube_description = f"""
 
 Prueba las herramientas que todo inversor inteligente necesita: https://inversionesyfinanzas.xyz
@@ -32,33 +36,6 @@ invertir siendo joven
 multiplicar tu dinero
 analizar una empresa
 """
-
-class TitlesManager(models.Manager):
-    @property
-    def random_title(self):
-        titles = [al_title for al_title in DEFAULT_TITLES.objects.all()]
-        return random.choice(titles)
-
-
-class EmojiManager(models.Manager):
-    @property
-    def random_emojis(self):
-        emojidict = {}
-        for i, emoji in enumerate(EMOJIS.objects.all()[:3]):
-            emojidict[f'emoji{i}'] = emoji
-        return emojidict
-
-
-class HashtagsManager(models.Manager):
-    @property
-    def random_ig_hashtags(self):
-        hashtags = [hashtag for hashtag in HASHTAGS.objects.filter(for_ig = True)]
-        return hashtags
-    
-    @property
-    def random_tw_hashtags(self):
-        hashtags = [hashtag for hashtag in HASHTAGS.objects.filter(for_tw = True)]
-        return hashtags
 
 
 class HASHTAGS(models.Model):        
@@ -93,6 +70,7 @@ class DEFAULT_TITLES(models.Model):
 class FOLDERS(models.Model):
     name = models.CharField(max_length=1000,default='')
     full_path = models.TextField(default='')
+    objects = FoldersManager()
 
     def __str__(self) -> str:
         return str(self.full_path)
@@ -114,6 +92,7 @@ class LOCAL_CONTENT(models.Model):
     original_local = models.UUIDField(null = True)
     has_consistent_error = models.BooleanField(default=False)
     error_msg = models.TextField(default='')
+    objects = ContentManager()
 
     def __str__(self) -> str:
         return str(self.iden)
@@ -123,16 +102,16 @@ class LOCAL_CONTENT(models.Model):
             self.iden = self.create_uuid()
         return super().save(*args, **kwargs)
     
-    @property
-    def local_path(self):
-        return f'{self.main_folder.full_path}{self.iden}/'
-    
     def create_uuid(self) -> uuid:
         new_iden = uuid.uuid4()
-        if LOCAL_CONTENT.objects.filter(iden = new_iden).exists():
+        if self.objects.filter(iden = new_iden).exists():
             return self.create_uuid()
         else:
             return new_iden
+    
+    @property
+    def local_path(self):
+        return f'{self.main_folder.full_path}{self.iden}/'
     
     def create_dir(self):
         os.mkdir(self.local_path)

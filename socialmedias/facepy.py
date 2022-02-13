@@ -124,22 +124,26 @@ class FACEBOOK():
     
 
     def post_content(self, type:str, content, files = None):
-        print ("Posting file...")
+        logger.info("Posting file...")
         if type == 'video':
             re = requests.post(f'{self.facebook_video_url}{self.page_id}/videos',files=files, data = content)
-        if type == 'text':
+        elif type == 'text':
             re = requests.post(f'{self.facebook_url}{self.page_id}/feed', data = content)
-        if type == 'image':
+        elif type == 'image':
             re = requests.post(f'{self.facebook_url}{self.page_id}/photos', data = content)        
         
         response = {}
+        json_re = re.json()
         if re.status_code == 200:
             response['status'] = re.status_code
-            response['post_id'] = str(re.json()['id'])            
+            response['post_id'] = str(json_re['id'])            
             return response
         
-        elif re.json()['error']['code'] == 190:
+        elif json_re['error']['code'] == 190:
             logger.error('Need new user token')            
+            sys.exit()
+        else:
+            logger.error(f'{json_re}')
             sys.exit()
     
 

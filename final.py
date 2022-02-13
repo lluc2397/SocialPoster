@@ -3,6 +3,7 @@
 import logging
 import argparse
 import os
+import subprocess as s
 import sys
 
 sys.dont_write_bytecode = True
@@ -12,17 +13,15 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
 import django
 django.setup()
 
-from management import MULTIPOSTAGE,desktop_notification
+from management import MULTIPOSTAGE
 from modelos.models import (
-    LOCAL_CONTENT,
+    LOCAL_CONTENT,FOLDERS,
     YOUTUBE_VIDEO_DOWNLOADED)
 
 logger = logging.getLogger('longs')
 
 
 """
-
-Descargar y publicar directamten los videos con subtítulos en Youtube. Compartir el link del video en Face y Twitter.
 
 Descargar imágenes de insta.
 Ver como publicar en Tiktok de forma automática.
@@ -31,6 +30,9 @@ Después probar con google business
 
 """
 
+logo = '/home/lucas/InvFin/images/LOGO/logo FB Inversiones y finanzas.png'
+def desktop_notification(title, message='', duration=1, img_path=logo):
+    s.Popen(["notify-send",f"{title}", f"{message}", "-t",f"{(duration * 1000)}", "-i", f"{img_path}"])
 
 def main():
     parser = argparse.ArgumentParser()
@@ -40,6 +42,12 @@ def main():
 
     parser.add_argument('-long', "--long", action='store_true',
     help='Post a long video')
+
+    parser.add_argument('-test', "--test", action='store_true',
+    help='Test')
+
+    parser.add_argument('-img', "--image", action='store_true',
+    help='Post a image')
     
 
     args_dict = vars(parser.parse_args())
@@ -85,9 +93,12 @@ def main():
         MULTIPOSTAGE().create_post_short()
     
     if args_dict['test'] is True:
-        MULTIPOSTAGE().test()
-
-from socialmedias.youpy import YOUTUBE
+        desktop_notification('Nop')
+        
 if __name__ == '__main__':
-    main()
-    
+    # main()
+    folds = FOLDERS.objects.all()
+    for f in folds:
+        print(f.name, f)
+    # contents = LOCAL_CONTENT.objects.available_video
+    # print(contents)
