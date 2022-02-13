@@ -3,9 +3,7 @@ import random
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 import cv2
 import os
-
-
-
+from modelos.models import FOLDERS
 
 def resize_image(image_full_path, final_path, top =0, bottom=0, delete_old = False):
     imagen_original = cv2.imread(image_full_path)
@@ -55,8 +53,9 @@ def convert_pictures_to_video(new_dir,image, fps, duration, is_vertical=True):
 
 
 
-def joint_video_audio(audio_directory, videofile, final_directory, is_vertical=True):
+def joint_video_audio(videofile, final_directory, is_vertical=True, codec="libx264"):
     #generate audio file cut
+    audio_directory = FOLDERS.objects.audio_folder
     audiofile = random.choice(os.listdir(audio_directory))
 
     start_time = random.randint(0, 130)
@@ -77,19 +76,18 @@ def joint_video_audio(audio_directory, videofile, final_directory, is_vertical=T
     clip_audio_cortado = mymovie.AudioFileClip(final_audio)
     
     video_final_con_audio = clip_video.set_audio(clip_audio_cortado)
+
+    #Video codecs: HECV or H264 (Instagram), libx264(Youtube)
     #create the final video with the audio
-    video_final_con_audio.write_videofile(final_video, codec="libx264", audio_codec="aac")
+    video_final_con_audio.write_videofile(final_video, codec=codec, audio_codec="aac")
 
     return final_video
 
 
-# def concat_videos(video):
-#     vid = mymovie.VideoFileClip(video)
-#     final_clip = vid.set_fps(23)
-#     final_video = (video.replace("".join(video.split('/')[-1:]), 'morefps.mp4'))
-#     final_clip.write_videofile(final_video)
-
-#     return final_video
+def create_short_from_image(new_dir, image, fps, duration, is_vertical=True):
+    video = convert_pictures_to_video(new_dir,image, fps, duration, is_vertical)
+    final_video = joint_video_audio(video, new_dir, is_vertical, codec="HECV")
+    return final_video
 
 
 def create_img_from_frame(video):
@@ -100,7 +98,6 @@ def create_img_from_frame(video):
     while success:
         cv2.imwrite(final_image, image)     # save frame as JPEG file      
         success,image = vidcap.read()
-        print('Read a new frame: ', success)
         count += 1
         if count == 1:
             break

@@ -96,7 +96,6 @@ class YOUTUBE:
 
   def initialize_upload(self, video_title:str, video_file:str,  video_tags:list, description=youtube_description, post_time='', privacyStatus="private"):
     youtube = self.get_authenticated_service()
-    tags = video_tags
 
     if privacyStatus == 'public':
       status = {
@@ -113,7 +112,7 @@ class YOUTUBE:
     snippet=dict(
         title= video_title,
         description=description,
-        tags=tags,
+        tags=video_tags,
         categoryId="22"
     ),
     status=status
@@ -150,7 +149,6 @@ class YOUTUBE:
   def upload_caption(self, video_id:str, file:str, language = 'es', name = 'Español'):
     youtube = self.get_authenticated_service_for_captions()
 
-    print('Uploading caption...')
     insert_result = youtube.captions().insert(
       part="snippet",
       body=dict(
@@ -164,12 +162,6 @@ class YOUTUBE:
       media_body=file
     ).execute()
 
-    id = insert_result["id"]
-    name = insert_result["snippet"]["name"]
-    language = insert_result["snippet"]["language"]
-    status = insert_result["snippet"]["status"]
-    print (f"Uploaded caption track {name}, {id}, {language}, {status}")
-
 
 
   def resumable_upload(self, insert_request):
@@ -178,9 +170,6 @@ class YOUTUBE:
     retry = 0
     while response is None:
       try:
-        print ("Uploading file...")
-        
-        status, response = insert_request.next_chunk()
         if response is not None:
           if 'id' in response:
             return str(response['id'])
@@ -316,10 +305,9 @@ class YOUTUBE:
             "safebrowsing_for_trusted_sources_enabled": False,
             "safebrowsing.enabled": False
     })
-    # options.binary_location = '/snap/bin/chromium.chromedriver'
+    
     driver_path = '/usr/lib/chromium-browser/chromedriver'
     try:
-      print('starting to get captions')
       
       video_url = video.url
       url = f'https://savesubs.com/process?url={video_url}'
@@ -353,7 +341,6 @@ class YOUTUBE:
       driver.quit()
       video.captions_downloaded = True
       video.save()
-      print('captions saved')
         
     except Exception as e:
       hora = datetime.datetime.now()
@@ -368,16 +355,47 @@ class YOUTUBE:
     
     else:
       return 'captions-correct'
-        
-        
-        
-        
+    
+  
+  def upload_youtube_short(self, local_content, is_original=False, yb_title=''):
+
+    emojis = EMOJIS.objects.random_emojis
+
+    emoji1 = random.choice(emojis)
+    emoji2 = random.choice(emojis)
+
+    default_title = False
+    if yb_title == '':
+      default_title = True
+      random_yb_title = DEFAULT_TITLES.objects.random_title
+      yb_title = random_yb_title.title
+
+    yb_title = f'{emoji1.emoji} {yb_title}{emoji2.emoji} {short_tag}'
+
+    yb_hashtags = [hashtag.name for hashtag in HASHTAGS.objects.random_yb_hashtags]
+
+    video_path = f'{local_content.local_path}vertical-final.mp4'
+
+    try:
+      yb_post_id = self.initialize_upload(video_title=yb_title, video_file=video_path,  video_tags=yb_hashtags, description=youtube_description, privacyStatus='public')
+    except Exception as e:
+      logger.error(f'Error when uploading--> {e} ')
+
+      local_content.has_consistent_error = True
+      local_content.error_msg = e
+      local_content.save()
+      
+      return 'error-uploading-video'
+    else:
+      local_content.published = True
+      local_content.save()
+
+      self.record_youtube_post(local_content, 2, is_original, yb_post_id, [emoji1, emoji2], HASHTAGS.objects.random_yb_hashtags, default_title, yb_title)
+
+      return yb_post_id
 
 
-  def upload_and_post_video_youtube(self,local_content_related,post_type:int, yb_title='',is_original=False, with_caption=True,privacyStatus='public'):
-    """
-    if post_type == 1 video is long, if post_type == 2 is short
-    """
+  def upload_post_video_youtube(self,local_content_related,post_type:int, yb_title='',is_original=False, with_caption=True,privacyStatus='public'):
 
     emojis = EMOJIS.objects.all()
 
@@ -388,8 +406,7 @@ class YOUTUBE:
     default_title = False
 
     if yb_title == '':
-      titles = [al_title for al_title in DEFAULT_TITLES.objects.all()]
-      random_yb_title = random.choice(titles)
+      random_yb_title = DEFAULT_TITLES.objects.random_title
       default_title = True       
       yb_title = random_yb_title.title
 
@@ -397,39 +414,39 @@ class YOUTUBE:
     yb_title = f'{emoji1.emoji} {yb_title}{emoji2.emoji} en ESPAÑOL {emoji3.emoji}(sub)'
 
     video_dir = f'{local_content_related.local_path}'
+ 
+    for file in os.listdir(video_dir):
 
-    if post_type == 1:
-      captions_path = None   
-      for file in os.listdir(video_dir):
+      video_path = video_dir +file if file.endswith('.mp4') else None
+      
+      captions_path = video_dir +file if file.endswith('.srt') else None
 
-        if file.endswith('.mp4'):
-          video_path = video_dir +file
+    if captions_path is None:
+      logger.error(f'No captions')
+      return 'no-captions'
+    
+    if video_path is None:
+      logger.error(f'No video_path')
+      return 'no-video_path'
 
-        if file.endswith('.srt'):
-          captions_path = video_dir +file
 
-      if captions_path is None:
-        logger.error(f'No captions')
-        return 'no-captions'
-
-    else:
-      video_path = f'{video_dir}vertical-final.mp4'
-      yb_title = yb_title + short_tag
-
-    yb_hashtags = [hashtag.name for hashtag in HASHTAGS.objects.filter(for_yb = True)]        
+    yb_hashtags = [hashtag.name for hashtag in HASHTAGS.objects.random_yb_hashtags]        
 
     try:
       print('Initialize upload')
       yb_post_id = self.initialize_upload(video_title=yb_title, video_file=video_path,  video_tags=yb_hashtags, description=youtube_description, privacyStatus=privacyStatus)
     except Exception as e:
       logger.error(f'Error when uploading--> {e} ')
-      
+
+      local_content_related.has_consistent_error = True
+      local_content_related.error_msg = e
+      local_content_related.save()
+
       return 'error-uploading-video'
     else:
       local_content_related.published = True
       local_content_related.save()
 
-      print('Initialize upload captions')
       if with_caption is True:
         try:
           self.upload_caption(yb_post_id,captions_path)
@@ -438,32 +455,45 @@ class YOUTUBE:
           
           sys.exit()
 
-      try:
-        print('Creating post record')
-        youtube_record = YOUTUBE_POST.objects.create(
-        content_related = local_content_related,
+      self.record_youtube_post(local_content_related, 1, is_original, yb_post_id, [emoji1, emoji2, emoji3], HASHTAGS.objects.random_yb_hashtags, default_title, yb_title)
+
+      return yb_post_id
+    
+
+  def record_youtube_post(self, local_content, post_type:int, is_original:bool, social_id:str, emojis:list, hashtags:list, default_title:bool, title:str):
+    try:
+      youtube_record = YOUTUBE_POST.objects.create(
+        content_related = local_content,
         post_type = post_type,
         is_original = is_original,
-        social_id = yb_post_id
+        social_id = social_id
         )
-        youtube_record.emojis.add(emoji1)
-        youtube_record.emojis.add(emoji2)
-        youtube_record.emojis.add(emoji3)
+      
+      for emoji in emojis:
+        youtube_record.emojis.add(emoji)
 
-        for hashtag in HASHTAGS.objects.filter(for_yb = True):
-          youtube_record.hashtags.add(hashtag)
+      for hashtag in hashtags:
+        youtube_record.hashtags.add(hashtag)
 
-        if default_title is True:
-          youtube_record.default_title = random_yb_title
-        else:
-          youtube_record.title = yb_title
-
-          youtube_record.save()
-      except Exception as e:
-        logger.error(f'Error when creating record')
-        return 'error'
+      if default_title is True:
+        youtube_record.default_title = title
       else:
-        return yb_post_id
+        youtube_record.title = title
+
+      youtube_record.save()
+
+      response = {
+        'result':'success',
+      }
+    except Exception as e:
+      logger.exception('Error while creating youtube post')
+      response = {
+        'result':'error',
+        'where':'youtube post creation',
+        'message':f'{e}'
+      }
+
+    return response
 
 
 

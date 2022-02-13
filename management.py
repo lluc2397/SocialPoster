@@ -5,7 +5,7 @@ import cloudinary
 import random
 import time
 import logging
-from editing import resize_image, joint_video_audio, convert_pictures_to_video
+from editing import resize_image, create_short_from_image
 from settings import Motdepasse
 
 from modelos.models import (
@@ -28,11 +28,6 @@ ig_account_id = '17841444650537865'
 # month = 1
 # day = datetime.datetime.now().day
 # hour = 17
-
-
-audio_directory = "/home/lucas/smcontent/musicfiles/"
-
-posted_dir = '/home/lucas/smcontent/publicados/'
 
 horizontal_video_string = 'horizontal-final.mp4'
 
@@ -67,17 +62,13 @@ class MULTIPOSTAGE:
         self.new_facebook = FACEBOOK(user_token=user_access_token, page_access_token=new_long_live_page_token, page_id=new_facebook_page_id)
         self.old_facebook = FACEBOOK(user_token=user_access_token, page_access_token=old_fb_page_access_token, page_id=old_faceboo_page_id)
         self.insta = INSTAGRAM(user_access_token=user_access_token ,page_access_token=new_long_live_page_token, ig_account_id=ig_account_id)
-        self.youtube = YOUTUBE
+        self.youtube = YOUTUBE()
         self.twitter = TWITEER()
     
 
-    def default_information(self):
-        default_title = ''
-        default_hashtags = []
-        default_emojis = []
-
-        default_info = {}
-
+    def default_information(self,media_id):
+        default_info = self.insta.get_media_info(media_id)
+        print(default_info)
         return default_info
     
 
@@ -87,7 +78,7 @@ class MULTIPOSTAGE:
             video = YOUTUBE_VIDEO_DOWNLOADED.objects.filter(downloaded = False, has_caption=True)[0]
             try:
                 logger.info(f'Starting the downloading process with {video}')
-                local_content_related = self.youtube().download_youtube_video(video=video, get_captions = True)
+                local_content_related = self.youtube.download_youtube_video(video=video, get_captions = True)
                 video.downloaded = True
                 video.save()
                 logger.info(f'Download succesfull {local_content_related}')
@@ -100,14 +91,14 @@ class MULTIPOSTAGE:
             video = video
             local_content_related = video.content_related
             if video.captions_downloaded is False:
-                self.youtube().get_caption(local_content_related, video)
+                self.youtube.get_caption(local_content_related, video)
                 
         yb_title = video.old_title
         if video.new_title:
             yb_title = video.new_title
 
         logger.info(f'Starting the uploading process with {yb_title}')
-        yb_video_id = self.youtube().upload_and_post_video_youtube(local_content_related=local_content_related,post_type=1, yb_title=yb_title, privacyStatus='public')
+        yb_video_id = self.youtube.upload_and_post_video_youtube(local_content_related=local_content_related,post_type=1, yb_title=yb_title, privacyStatus='public')
         
 
         if yb_video_id == 'no-captions':                
@@ -229,15 +220,9 @@ class MULTIPOSTAGE:
     
 
     def create_post_short(self):
-        
-        folder = '/home/lucas/InvFin/smcontent/shorts-videos/'
-        carpeta = FOLDERS.objects.get_or_create(name = 'shorts',full_path = folder)[0]
+        carpeta = FOLDERS.objects.shorts_folder
 
-        local_content = LOCAL_CONTENT.objects.filter(
-            published = True,
-            is_img = True,
-            reusable = True)[0]
-        
+        local_content = LOCAL_CONTENT.objects.available_image_for_short        
 
         new_content = LOCAL_CONTENT.objects.create(
             main_folder = carpeta,
@@ -250,12 +235,11 @@ class MULTIPOSTAGE:
         image = local_content.local_path + 'resized-image.jpg'
         new_dir = new_content.create_dir()
         
-        fps = random.randint(25, 33)
-        duration = random.randint(25, 33)
-        new_video = convert_pictures_to_video(new_dir, image, fps, duration)
-        final_short = joint_video_audio("/home/lucas/smcontent/musicfiles/", new_video, new_dir)
-
-        yb_video = self.youtube().upload_and_post_video_youtube(new_content,post_type=2, with_caption=False)
+        num = random.randint(25, 33)
+        
+        final_short = create_short_from_image(new_dir, image, num, num)
+        
+        yb_video_id = self.youtube.upload_youtube_short(self, new_content)
         self.twitter.default_short_tweet(new_content, final_short)
 
         return 'success'

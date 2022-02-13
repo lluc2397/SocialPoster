@@ -239,6 +239,20 @@ class INSTAGRAM():
             ig_post.hashtags.add(hashtag)
 
         return ig_id
+    
+
+    def get_media_info(self, media_id):
+        url = f'{self.main_instagram_url}/{media_id}'
+        params = {
+            'fields':'media_url',
+            'access_token':self.user_access_token
+        }
+        response = requests.get(url, params = params)
+        print(response.content)
+        return response.json()
+
+        
+
 
 
     

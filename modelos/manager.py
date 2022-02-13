@@ -19,8 +19,7 @@ class EmojiManager(models.Manager):
 
     @property
     def random_emojis(self):
-        num = random.randint(0, 4)
-        emojis = [emoji for emoji in self.all()[:num]]
+        emojis = [emoji for emoji in self.all()]
         return emojis
 
 
@@ -53,6 +52,11 @@ class ContentManager(models.Manager):
     def available_video(self):
         content = self.filter(published = False, has_consistent_error= False, is_video = True)
         return content[0]
+    
+    @property
+    def available_image_for_short(self):
+        content = self.filter(published = True, has_consistent_error= False, is_img = True, reusable = True, reused = False)
+        return content[0]
 
 class FoldersManager(models.Manager):
 
@@ -75,5 +79,9 @@ class FoldersManager(models.Manager):
     @property
     def resized_folder(self):
         return self.get(name = 'resized images')
+    
+    @property
+    def audio_folder(self):
+        return self.get(name = 'audio')
     
     

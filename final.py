@@ -5,6 +5,7 @@ import argparse
 import os
 import subprocess as s
 import sys
+import time
 
 sys.dont_write_bytecode = True
 
@@ -15,7 +16,7 @@ django.setup()
 
 from management import MULTIPOSTAGE
 from modelos.models import (
-    LOCAL_CONTENT,FOLDERS,
+    LOCAL_CONTENT,INSTAGRAM_POST,
     YOUTUBE_VIDEO_DOWNLOADED)
 
 logger = logging.getLogger('longs')
@@ -94,11 +95,9 @@ def main():
     
     if args_dict['test'] is True:
         desktop_notification('Nop')
-        
+
 if __name__ == '__main__':
     # main()
-    folds = FOLDERS.objects.all()
-    for f in folds:
-        print(f.name, f)
-    # contents = LOCAL_CONTENT.objects.available_video
-    # print(contents)
+    loc =LOCAL_CONTENT.objects.available_image_for_short
+
+    print(loc)
