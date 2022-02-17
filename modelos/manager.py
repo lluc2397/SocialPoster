@@ -21,9 +21,8 @@ class EmojiManager(models.Manager):
     def random_emojis(self, num):        
         emojis = []
         for i in range(num):
-            emojis.apppend(self.get(id = random.randint(1,self.all().count())))
+            emojis.append(self.get(id = random.randint(1,self.all().count())))
         return emojis
-
 
 class HashtagsManager(models.Manager):
 
@@ -59,8 +58,17 @@ class ContentManager(models.Manager):
     
     @property
     def available_video(self):
-        content = self.filter(published = False, has_consistent_error= False, is_video = True)
+        content = self.filter(
+            published = False,
+            has_consistent_error= False,
+            is_video = True,
+            reused = False,
+            reusable = False)
         return content[0]
+    
+    @property
+    def available_downloaded_video(self):
+        return self.available_video.video_downloaded.all()[0]
     
     @property
     def available_image_for_short(self):

@@ -349,11 +349,9 @@ class Youtube:
         button = driver.find_element_by_xpath('/html/body/main/section/main/section[3]/section/div[2]/div/form/button')
 
         button.click()
-        time.sleep(1)
-        driver.stop_client()
-        driver.close()
-        
+        time.sleep(1)        
         driver.quit()
+        driver.stop_client()
         video.captions_downloaded = True
         video.save()
         response['result'] = 'success'

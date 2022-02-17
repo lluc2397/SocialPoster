@@ -215,7 +215,7 @@ class YoutubeVideoDowloaded(models.Model):
     has_caption = models.BooleanField(default=False)
     captions_downloaded = models.BooleanField(default=False)
     download_date = models.DateTimeField(auto_now_add=True, null = True)
-    content_related = models.ForeignKey(LocalContent, null = True, blank=True, on_delete=models.SET_NULL)
+    content_related = models.ForeignKey(LocalContent, null = True, blank=True, on_delete=models.CASCADE, related_name = 'video_downloaded')
     objects = YoutubeVideoDowloadedManager()
 
     def __str__(self) -> str:

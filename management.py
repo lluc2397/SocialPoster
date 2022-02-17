@@ -4,6 +4,7 @@ import random
 import time
 import logging
 import sys
+import shutil
 
 from editing import resize_image, create_short_from_image
 from settings import Motdepasse, print_progress_bar
@@ -49,6 +50,17 @@ class Multipostage:
         self.youtube = Youtube()
         self.twitter = Twitter()
 
+    def tests(self):
+        video = LocalContent.objects.available_downloaded_video
+        print(video)
+
+
+    def delete_non_saved_local(safe):
+        videos = os.listdir(Folder.objects.longs_folder.full_path)        
+        for video in videos:
+            existe = LocalContent.objects.filter(iden=video)
+            if existe.count() == 0:
+                shutil.rmtree(Folder.objects.longs_folder.full_path + video)
 
 
     def download_captions(self):
@@ -72,7 +84,7 @@ class Multipostage:
 
     def share_long(self, retry=0):
         retry = retry
-        video = LocalContent.objects.available_video
+        video = LocalContent.objects.available_downloaded_video
 
         logger.info(f'Starting the uploading process')
         

@@ -47,7 +47,8 @@ def main():
     args_dict = vars(parser.parse_args())
 
     if all(value is False for value in list(args_dict.values())):
-        Multipostage().download_captions()           
+        # Multipostage().download_captions()
+        desktop_notification('Nop')           
 
     if args_dict['long'] is True:
         Multipostage().share_long()
@@ -59,6 +60,7 @@ def main():
         Multipostage().create_share_short()
     
     if args_dict['test'] is True:
+        Multipostage().tests()
         desktop_notification('Nop')
 
 if __name__ == '__main__':
