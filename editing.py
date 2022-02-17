@@ -3,7 +3,7 @@ import random
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 import cv2
 import os
-from modelos.models import FOLDERS
+from modelos.models import Folder
 
 def resize_image(image_full_path, final_path, top =0, bottom=0, delete_old = False):
     imagen_original = cv2.imread(image_full_path)
@@ -55,7 +55,7 @@ def convert_pictures_to_video(new_dir,image, fps, duration, is_vertical=True):
 
 def joint_video_audio(videofile, final_directory, is_vertical=True, codec="libx264"):
     #generate audio file cut
-    audio_directory = FOLDERS.objects.audio_folder.full_path
+    audio_directory = Folder.objects.audio_folder.full_path
     audiofile = random.choice(os.listdir(audio_directory))
 
     start_time = random.randint(0, 130)

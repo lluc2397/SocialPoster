@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 from pathlib import Path
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -46,6 +47,13 @@ def error_handling(where, extra=None):
         return wrap
     return decorator
 
+
+def print_progress_bar(actua_position, total_size, extra_text):
+    n_bar = 10 #size of progress bar
+    percentage = actua_position/total_size
+    sys.stdout.write('\r')
+    sys.stdout.write(f"[{'=' * int(n_bar * percentage):{n_bar}s}] {int(100 * percentage)}%  {extra_text}")
+    sys.stdout.flush()
 
 # SECURITY WARNING: Modify this secret key if using in production!
 SECRET_KEY = "6few3nci_q_o@l1dlbk81%wcxe!*6r29yu629&d97!hiqat9fa"

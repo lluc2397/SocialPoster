@@ -6,7 +6,7 @@ import logging
 import sys
 
 from editing import resize_image, create_short_from_image
-from settings import Motdepasse
+from settings import Motdepasse, print_progress_bar
 from modelos.models import (
     Folder,
     LocalContent,
@@ -52,7 +52,14 @@ class Multipostage:
 
 
     def download_captions(self):
-        for video in YoutubeVideoDowloaded.objects.filter(downloaded = True, captions_downloaded=False):
+        videos = YoutubeVideoDowloaded.objects.filter(downloaded = True, captions_downloaded=False)
+        total = videos.count()
+        for i, video in enumerate(videos):
+            print_progress_bar(i,total,f'Total: {total}')
+            if video.content_related is None:
+                video.downloaded = False
+                video.save()
+                continue
             captions_response = self.youtube.get_caption(video.content_related, video)
 
             if captions_response['result'] == 'error':

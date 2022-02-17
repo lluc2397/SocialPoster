@@ -1,6 +1,5 @@
 #!/home/lucas/Programacion/socialmediaposter/venv/bin/python
 
-import logging
 import argparse
 import os
 import subprocess as s
@@ -48,10 +47,10 @@ def main():
     args_dict = vars(parser.parse_args())
 
     if all(value is False for value in list(args_dict.values())):
-        desktop_notification('Nop', "It's necessary to select at least one social media")
+        Multipostage().download_captions()           
 
     if args_dict['long'] is True:
-        Multipostage().share_long()            
+        Multipostage().share_long()
 
     if args_dict['image'] is True:
         Multipostage().create_share_image()
