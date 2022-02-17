@@ -3,7 +3,7 @@ import random
 import json
 from settings import Motdepasse
 
-from modelos.models import HASHTAGS, DEFAULT_TITLES, TWITTER_POST
+from modelos.models import Hashtag, DefaultTilte, TwitterPostRecord
 
 site = 'https://inversionesyfinanzas.xyz'
 
@@ -24,14 +24,14 @@ class Twitter:
         twitter_api = tweepy.API(auth)
         return twitter_api
 
-    def tweet_text(self, status, lista_hashtags):
+    def tweet_text(self, status, lista_hashtags = Hashtag.objects.random_tw_hashtags):
         twitter_api = self.do_authenticate()
         
         hashtag1 = random.choice(lista_hashtags)
         hashtag2 = random.choice(lista_hashtags)
         hashtag3 = random.choice(lista_hashtags)
 
-        tweet_content = f'{status} #{hashtag1} #{hashtag2} #{hashtag3}'
+        tweet_content = f'{status} #{hashtag1.name} #{hashtag2.name} #{hashtag3.name}'
 
         response = twitter_api.update_status(tweet_content)
 

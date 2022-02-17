@@ -3,7 +3,15 @@ import requests
 import sys
 import logging
 import datetime
-from settings import Motdepasse, error_handling
+from modelos.models import (
+    DefaultTilte,
+    Hashtag,
+    Emoji,
+    FacebookPostRecord)
+
+from settings import (
+    Motdepasse,
+    error_handling)
 
 # from modelos.models import 
 
@@ -29,6 +37,8 @@ class Facebook():
         self.page_access_token = page_access_token
         self.facebook_url = 'https://graph.facebook.com/'
         self.facebook_video_url = "https://graph-video.facebook.com/"
+        self.post_facebook_url = self.facebook_url + self.page_id
+        self.post_facebook_video_url = self.facebook_video_url + self.page_id
     
     def get_long_live_user_token(self):
         url = f'{self.facebook_url}oauth/access_token'
@@ -67,15 +77,10 @@ class Facebook():
             return token
 
     
-    def post_fb_video(self, description= "" ,video_url= "", title= "", post_time='',hashtags=[], post_now = False):
+    def post_fb_video(self, video_url= "", description= "" , title= "", post_time='', post_now = False):
         """
         Post_now is False if the post has to be scheduled, True to post it now
         """
-        if description == '':
-            description = self.create_fb_description(hashtags)
-        
-        if title == '':
-            title = random.choice([def_title.title for def_title in DEFAULT_TITLES.objects.all()])
 
         files = {'source': open(video_url, 'rb')}
 
@@ -95,7 +100,7 @@ class Facebook():
                 'description': description
             }
 
-        return self.post_content('video', data, files)
+        return self._send_content('video', data, files)
 
     
     def post_text(self, text= "", post_time= "", post_now = True, link=''):
@@ -111,7 +116,7 @@ class Facebook():
         if link !='':
             data['link'] = link
 
-        return self.post_content('text', data)
+        return self._send_content('text', data)
 
 
 
@@ -120,18 +125,17 @@ class Facebook():
             'access_token': self.page_access_token,
             'url': photo_url
         }
-        return self.post_content('image', data)
+        return self._send_content('image', data)
         
-    
 
-    def post_content(self, type:str, content, files = None):
-        logger.info("Posting file on facebook...")
-        if type == 'video':
-            re = requests.post(f'{self.facebook_video_url}{self.page_id}/videos',files=files, data = content)
-        elif type == 'text':
-            re = requests.post(f'{self.facebook_url}{self.page_id}/feed', data = content)
-        elif type == 'image':
-            re = requests.post(f'{self.facebook_url}{self.page_id}/photos', data = content)        
+    def _send_content(self, content_type:str, content, files = None):
+        logger.info("Posting on facebook...")
+        if content_type == 'video':
+            re = requests.post(f'{self.post_facebook_video_url}/videos',files=files, data = content)
+        elif content_type == 'text':
+            re = requests.post(f'{self.post_facebook_url}/feed', data = content)
+        elif content_type == 'image':
+            re = requests.post(f'{self.post_facebook_url}/photos', data = content)        
         
         response = {}
         json_re = re.json()
@@ -141,16 +145,66 @@ class Facebook():
             return response
         
         elif json_re['error']['code'] == 190:
-            logger.error('Need new user token')            
+            logger.error(f'{json_re}, Need new user token')            
             sys.exit()
         else:
             logger.error(f'{json_re}')
             sys.exit()
     
 
+    def post_on_facebook(
+        self,
+        local_content = None,
+        post_type = 1,
+        is_original = False,
+        num_emojis = 1,
+        hashtags = Hashtag.objects.random_yb_hashtags,
+        has_default_title = True,
+        default_title = DefaultTilte.objects.random_title,
+        custom_title = '',
+        caption = '',
+        link='',
+        ):
+
+        emojis = Emoji.objects.random_emojis(num_emojis)
+
+        if custom_title == '' and has_default_title is False:
+            custom_title = f'{emojis[0].emoji}{default_title}'
+
+        if caption == '':
+            caption = self.create_fb_description([hashtag.name for hashtag in hashtags])
+        
+        if post_type == 1 or post_type == 5 or post_type == 7:
+            content_type = 'video'
+            video_url = ''
+            post_response = self.post_fb_video(video_url= video_url, description= caption, title= custom_title, post_now = True)
+
+        elif post_type == 2 or post_type == 6:
+            content_type = 'image'
+            post_response = self.post_image()
+
+        elif post_type == 3 or post_type == 4:
+            content_type = 'text'
+            post_response = self.post_text(text= custom_title, link=link)
+
+        facebook_post = FacebookPostRecord.objects.save_record(
+            local_content = local_content ,
+            post_type = post_type ,
+            is_original = is_original ,
+            social_id = post_response['post_id'] ,
+            emojis = emojis ,
+            hashtags = hashtags ,
+            has_default_title = has_default_title ,
+            default_title = default_title ,
+            custom_title = custom_title ,
+            caption = caption
+        )
+    
+
     def share_facebook_post(self, post_id, yb_title):
+        default_title = DefaultTilte.objects.random_title
         url_to_share = f'https://www.facebook.com/{self.facebook_page_name}/posts/{post_id}&show_text=true'
-        self.post_text(text=f'{random_title} {yb_title}', link = url_to_share)
+        return self.post_text(text=f'{default_title.title} {yb_title}', link = url_to_share)
     
 
 

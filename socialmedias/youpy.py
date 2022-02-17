@@ -446,14 +446,15 @@ class Youtube:
       local_content.save()
 
       YoutubePostRecord.objects.save_record(
-        local_content, 
-        1, 
-        is_original, 
-        upload_response['extra'], 
-        emojis, 
-        Hashtag.objects.random_yb_hashtags, 
+        local_content = local_content, 
+        post_type =1, 
+        is_original = is_original, 
+        social_id = upload_response['extra'], 
+        emojis = emojis, 
+        hashtags = Hashtag.objects.random_yb_hashtags, 
         has_default_title = False,
-        custom_title=custom_title)
+        custom_title=custom_title,
+        caption =youtube_description)
 
       upload_captions_response = self.upload_caption(upload_response['extra'],captions_path)
 
@@ -494,15 +495,16 @@ class Youtube:
       local_content.save()
 
       YoutubePostRecord.objects.save_record(
-        local_content, 
-        2, 
-        is_original, 
-        upload_response['extra'], 
-        emojis, 
-        Hashtag.objects.random_yb_hashtags, 
-        use_default_title, 
-        default_title, 
-        custom_title)
+        local_content = local_content, 
+        post_type =2, 
+        is_original = is_original, 
+        social_id = upload_response['extra'], 
+        emojis = emojis, 
+        hashtags = Hashtag.objects.random_yb_hashtags, 
+        has_default_title =use_default_title, 
+        default_title =default_title, 
+        custom_title = custom_title,
+        caption =youtube_description)
       
     else:
       local_content.has_consistent_error = True

@@ -136,20 +136,24 @@ class PostRecord(models.Model):
         social_id:str, 
         emojis:list, 
         hashtags:list, 
-        has_default_title:bool, 
+        has_default_title:bool,
         default_title='', 
-        custom_title=''):
+        custom_title='',
+        caption = ''):
         
         try:
             self.objects.create(
-            content_related = local_content,
             post_type = post_type,
             is_original = is_original,
             social_id = social_id,
             use_default_title = has_default_title,
-            custom_title = custom_title
+            custom_title = custom_title,
+            caption = caption
             )
 
+            if content_related is not None:
+                content_related = local_content
+                
             if has_default_title is True:
                 self.default_title = default_title
 
@@ -162,7 +166,7 @@ class PostRecord(models.Model):
             }
 
         except Exception as e:
-            logger.exception('Error while creating youtube post')
+            logger.exception(f'Error while creating post record {e}')
             response = {
                 'result':'error',
                 'where':'save record',

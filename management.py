@@ -10,6 +10,7 @@ from settings import Motdepasse
 from modelos.models import (
     Folder,
     LocalContent,
+    DefaultTilte,
     YoutubeVideoDowloaded
     )
 
@@ -89,77 +90,26 @@ class Multipostage:
         return repost_response
         
 
-    def repost_youtube_video(self, yb_title, yb_video_id, frase_default=''):
+    def repost_youtube_video(self, yb_title, yb_video_id):
         url_to_share = f'https://www.youtube.com/watch?v={yb_video_id}'
-        hashtags = HASHTAGS.objects.all()
+        default_title = DefaultTilte.objects.random_title
 
-        query_default_titles = DEFAULT_TITLES.objects
-        if frase_default == '':
-            default_title = query_default_titles.random_title
-        else:
-            default_title = query_default_titles.get_or_create(title = frase_default)[0]
-
-
-        tw_hashtags = []
-        fb_hashtags = []
-        
-        for hashtag in hashtags:
-            if hashtag.for_tw is True:                
-                tw_hashtags.append(hashtag)
-            if hashtag.for_fb is True:                
-                fb_hashtags.append(hashtag)
-        
         fb_title = f"""{default_title.title}
         {yb_title}"""
-        
-        logger.info('Sharing the video on facebook')
-        fb_post_id = self.new_facebook.post_text(text=fb_title, link = url_to_share)
-        logger.info(f'Video shared on facebook, waiting a few seconds to let it process {fb_post_id}')
-        time.sleep(15)
-        try:
-            fb_post_id_repost = fb_post_id['post_id'].split('_')[1]
-            logger.info('Sharing the post of the video on the old facebook profile')
-            self.old_facebook.share_post_to_old_page(yb_title,fb_post_id_repost)
-        except Exception as e:
-            logger.info(e)
-            return
-        else:
-            facebook_post = FACEBOOK_POST.objects.create(
-                is_local = False,
-                title = default_title,
-                post_type = 4,
-                caption = yb_title)
-            
-            for hashtag in fb_hashtags:
-                facebook_post.hashtags.add(hashtag)
-            facebook_post.social_id = fb_post_id['post_id']
-            facebook_post.save()
-        
-        logger.info('Sharing the video on twitter')
 
         tw_status = f"""{fb_title}
         {url_to_share}
-        """
-        try:
-            tweeter_post_id = self.twitter.tweet_text(tw_status,tw_hashtags)
-            logger.info('Post shared on twitter')
-        except Exception as e:
-            logger.info(e)
-            return
-        else:
-            twitter_post = TWITTER_POST.objects.create(
-                is_local = False,
-                default_title = default_title,
-                post_type = 4,
-                caption = tw_status)
+        """       
 
-            for hashtag in tw_hashtags:
-                twitter_post.hashtags.add(hashtag)
+        tweeter_post_id = self.twitter.tweet_text(tw_status)
 
-            twitter_post.social_id = tweeter_post_id['id']
-            twitter_post.save()
+        fb_post_id =  self.new_facebook.post_text(text=fb_title, link = url_to_share)
 
-            return 'success'
+        fb_post_id_repost = fb_post_id['post_id'].split('_')[1]
+
+        self.old_facebook.share_facebook_post(post_id = fb_post_id_repost, yb_title = yb_title)
+
+        
     
 
     def create_post_image(self):
