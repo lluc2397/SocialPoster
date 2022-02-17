@@ -187,7 +187,7 @@ class Facebook():
             content_type = 'text'
             post_response = self.post_text(text= custom_title, link=link)
 
-        facebook_post = FacebookPostRecord.objects.save_record(
+        facebook_post = FacebookPostRecord.general_manager.save_record(
             local_content = local_content ,
             post_type = post_type ,
             is_original = is_original ,

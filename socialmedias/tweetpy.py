@@ -49,33 +49,33 @@ class Twitter:
         return response._json
     
 
-    def default_tweet_status(self):
-        lista_hashtags = HASHTAGS.objects.random_tw_hashtags
+    # def default_tweet_status(self):
+    #     lista_hashtags = HASHTAGS.objects.random_tw_hashtags
         
-        title = DEFAULT_TITLES.objects.random_title
+    #     title = DEFAULT_TITLES.objects.random_title
 
-        hashtag1 = random.choice(lista_hashtags)
-        hashtag2 = random.choice(lista_hashtags)
-        hashtag3 = random.choice(lista_hashtags)
+    #     hashtag1 = random.choice(lista_hashtags)
+    #     hashtag2 = random.choice(lista_hashtags)
+    #     hashtag3 = random.choice(lista_hashtags)
 
-        tw_status = f'{title} #{hashtag1} #{hashtag2} #{hashtag3}'
+    #     tw_status = f'{title} #{hashtag1} #{hashtag2} #{hashtag3}'
 
-        twitter_post = TWITTER_POST.objects.create(
-            is_local = False,
-            default_title = title,
-            caption = tw_status)
+    #     twitter_post = TWITTER_POST.objects.create(
+    #         is_local = False,
+    #         default_title = title,
+    #         caption = tw_status)
         
-        twitter_post.hashtags.add(hashtag1)
-        twitter_post.hashtags.add(hashtag2)
-        twitter_post.hashtags.add(hashtag3)
-        twitter_post.save()
+    #     twitter_post.hashtags.add(hashtag1)
+    #     twitter_post.hashtags.add(hashtag2)
+    #     twitter_post.hashtags.add(hashtag3)
+    #     twitter_post.save()
 
-        response = {
-            'tw_status':tw_status,
-            'twitter_post_model':twitter_post
-        }
+    #     response = {
+    #         'tw_status':tw_status,
+    #         'twitter_post_model':twitter_post
+    #     }
 
-        return response
+    #     return response
     
 
     def default_image_tweet(self,local_content, media_url):

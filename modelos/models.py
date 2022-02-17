@@ -14,7 +14,8 @@ from modelos.manager import (
     EmojiManager,
     ContentManager,
     FoldersManager,
-    YoutubeVideoDowloadedManager
+    YoutubeVideoDowloadedManager,
+    GeneralManager
 )
 
 logger = logging.getLogger('longs')
@@ -120,62 +121,14 @@ class PostRecord(models.Model):
     social_id = models.TextField(default='')
     use_default_title = models.BooleanField(default=True)
     custom_title = models.TextField(default='')
+    objects = models.Manager()
+    general_manager = GeneralManager()
 
     class Meta:
         abstract = True
     
     def __str__(self) -> str:
         return str(self.id)
-
-
-    def save_record(
-        self, 
-        local_content, 
-        post_type:int, 
-        is_original:bool, 
-        social_id:str, 
-        emojis:list, 
-        hashtags:list, 
-        has_default_title:bool,
-        default_title='', 
-        custom_title='',
-        caption = ''):
-        
-        try:
-            self.objects.create(
-            post_type = post_type,
-            is_original = is_original,
-            social_id = social_id,
-            use_default_title = has_default_title,
-            custom_title = custom_title,
-            caption = caption
-            )
-
-            if content_related is not None:
-                content_related = local_content
-                
-            if has_default_title is True:
-                self.default_title = default_title
-
-            self.emojis.add(*emojis)
-            self.hashtags.add(*hashtags)
-            self.save()
-
-            response = {
-                'result':'success',
-            }
-
-        except Exception as e:
-            logger.exception(f'Error while creating post record {e}')
-            response = {
-                'result':'error',
-                'where':'save record',
-                'message':f'{e}'
-            }
-
-        return response
-        
-
 
 class FacebookPostRecord(PostRecord):
     POST_TYPE = ((1, 'Video'), (2, 'Image'), (3, 'Text'),

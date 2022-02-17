@@ -1,12 +1,15 @@
 import sys 
 import random
 import uuid
+import logging
 
 try:
     from django.db import models
 except Exception:
     print('Exception: Django Not Found, please install it with "pip install django".')
     sys.exit()
+
+logger = logging.getLogger('longs')
 
 class TitlesManager(models.Manager):
 
@@ -64,7 +67,8 @@ class ContentManager(models.Manager):
             is_video = True,
             reused = False,
             reusable = False)
-        return content[0]
+        
+        return random.choice([contenido for contenido in content])
     
     @property
     def available_downloaded_video(self):
@@ -74,6 +78,57 @@ class ContentManager(models.Manager):
     def available_image_for_short(self):
         content = self.filter(published = True, has_consistent_error= False, is_img = True, reusable = True, reused = False)
         return content[0]
+
+
+class GeneralManager(models.Manager):
+
+    def save_record(
+        self, 
+        local_content, 
+        post_type:int, 
+        is_original:bool, 
+        social_id:str, 
+        emojis:list, 
+        hashtags:list, 
+        has_default_title:bool,
+        default_title='', 
+        custom_title='',
+        caption = ''):
+        
+        try:
+            modelo = self.create(
+            post_type = post_type,
+            is_original = is_original,
+            social_id = social_id,
+            use_default_title = has_default_title,
+            custom_title = custom_title,
+            caption = caption
+            )
+
+            if local_content is not None:
+                modelo.local_content = local_content
+                
+            if has_default_title is True:
+                modelo.default_title = default_title
+
+            modelo.emojis.add(*emojis)
+            modelo.hashtags.add(*hashtags)
+            modelo.save()
+
+            response = {
+                'result':'success',
+            }
+
+        except Exception as e:
+            logger.exception(f'Error while creating post record {e}')
+            response = {
+                'result':'error',
+                'where':'save record',
+                'message':f'{e}'
+            }
+
+        return response
+
 
 class FoldersManager(models.Manager):
 

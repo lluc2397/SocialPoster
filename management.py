@@ -12,7 +12,8 @@ from modelos.models import (
     Folder,
     LocalContent,
     DefaultTilte,
-    YoutubeVideoDowloaded
+    YoutubeVideoDowloaded,
+    FacebookPostRecord
     )
 
 # year = 2022
@@ -51,8 +52,11 @@ class Multipostage:
         self.twitter = Twitter()
 
     def tests(self):
-        video = LocalContent.objects.available_downloaded_video
-        print(video)
+        
+
+        a = FacebookPostRecord.objects.get(social_id = 'abracadabra')
+
+        print(a.delete())
 
 
     def delete_non_saved_local(safe):
@@ -90,13 +94,18 @@ class Multipostage:
         
         yb_response = self.youtube.upload_default_english_long_video(video)
 
-        if yb_response['result'] == 'error':            
-            retry += 1
-            if retry == 5:
-                logger.info(f'Error with the following video --> {video.id}')
+        if yb_response['result'] == 'error':
+            if yb_response['where'] == 'initialize upload youtube video' or yb_response['where'] == 'upload caption youtube video':
+                error_message = yb_response['message']
+                logger.info(f'Error uploading videos --> {error_message}')
                 sys.exit()
-            logger.info(f'Error with the following video --> {video.id}, starting again with an other')
-            return self.share_long(retry)
+            else:                
+                retry += 1
+                if retry == 5:
+                    logger.info(f'Error with the following video --> {video.id}')
+                    sys.exit()
+                logger.info(f'Error with the following video --> {video.id}, starting again with an other')
+                return self.share_long(retry)
         
         custom_title = video.old_title
         if video.new_title:

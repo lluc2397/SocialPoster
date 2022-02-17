@@ -419,7 +419,7 @@ class Youtube:
       captions_path = video_dir +file if file.endswith('.srt') else None
 
     if captions_path is None:
-      captions_response = self.get_caption(self, local_content, video)
+      captions_response = self.get_caption(local_content, video)
       if captions_response['result'] == 'error':
         return captions_response   
 
@@ -443,7 +443,7 @@ class Youtube:
       local_content.published = True
       local_content.save()
 
-      YoutubePostRecord.objects.save_record(
+      YoutubePostRecord.general_manager.save_record(
         local_content = local_content, 
         post_type =1, 
         is_original = is_original, 
