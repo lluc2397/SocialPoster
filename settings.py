@@ -23,6 +23,30 @@ class Motdepasse:
             json.dump(data, keys_json)
 
 
+def error_handling(where, extra=None):
+    def decorator(func):
+        def wrap(*args, **kwargs):
+
+            try:            
+                result = func(*args, **kwargs)
+                response ={
+                    'result':'success',
+                    'extra' : result
+                    }
+                
+            except Exception as e:
+                response ={
+                    'result':'error',
+                    'where':where,
+                    'message':e,
+                    'extra' : extra
+                    }            
+            
+            return response
+        return wrap
+    return decorator
+
+
 # SECURITY WARNING: Modify this secret key if using in production!
 SECRET_KEY = "6few3nci_q_o@l1dlbk81%wcxe!*6r29yu629&d97!hiqat9fa"
 

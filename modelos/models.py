@@ -1,6 +1,6 @@
-import uuid
 import os
 import sys
+import logging
 
 try:
     from django.db import models
@@ -13,32 +13,13 @@ from modelos.manager import (
     HashtagsManager,
     EmojiManager,
     ContentManager,
-    FoldersManager
+    FoldersManager,
+    YoutubeVideoDowloadedManager
 )
-youtube_description = f"""
 
-Prueba las herramientas que todo inversor inteligente necesita: https://inversionesyfinanzas.xyz
+logger = logging.getLogger('longs')
 
-Visita nuestras redes sociales:
-Facebook: https://www.facebook.com/InversionesyFinanzas/
-Instagram: https://www.instagram.com/inversiones.finanzas/
-TikTok: https://www.tiktok.com/@inversionesyfinanzas?
-Twitter : https://twitter.com/InvFinz
-LinkedIn : https://www.linkedin.com/company/inversiones-finanzas
-
-En este canal de INVERSIONES & FINANZAS, aprende cómo realizar un BUEN ANÁLISIS de las EMPRESAS. Descubre dónde invertir y de qué forma ENCONTRAR BUENAS OPORTUNIDADES de INVERSIÓN.
-
-APRENDE como invertir en la bolsa de valores.🥇 DESCUBRE las mejores ESTRATEGIAS que existen para INVERTIR y los pasos que deberías seguir para INVERTIR en la BOLSA mexicana de VALORES. ¿Quieres CONOCER la forma de INVERTIR de los INVERSORES más célebres de forma clara y FÁCIL? ADÉNTRATE en el ASOMBROSO mundo de las INVERSIONES. Si lo  que buscas es aprender a : 
-invertir en la bolsa de valores
-invertir sin dinero
-invertir con poco dinero
-invertir siendo joven
-multiplicar tu dinero
-analizar una empresa
-"""
-
-
-class HASHTAGS(models.Model):        
+class Hashtag(models.Model):        
     name = models.TextField(default='')
     is_trending = models.BooleanField(default=False)
     for_fb = models.BooleanField(default=False)
@@ -51,7 +32,7 @@ class HASHTAGS(models.Model):
         return str(self.name)
 
 
-class EMOJIS(models.Model):
+class Emoji(models.Model):
     emoji= models.TextField(default='')
     objects = EmojiManager()
 
@@ -59,7 +40,7 @@ class EMOJIS(models.Model):
         return str(self.emoji)
 
 
-class DEFAULT_TITLES(models.Model):
+class DefaultTilte(models.Model):
     title = models.TextField(default='')
     objects = TitlesManager()
 
@@ -67,7 +48,7 @@ class DEFAULT_TITLES(models.Model):
         return str(self.title)    
     
 
-class FOLDERS(models.Model):
+class Folder(models.Model):
     name = models.CharField(max_length=1000,default='')
     full_path = models.TextField(default='')
     objects = FoldersManager()
@@ -81,9 +62,9 @@ class FOLDERS(models.Model):
         return super().save(*args, **kwargs)
 
 
-class LOCAL_CONTENT(models.Model):
+class LocalContent(models.Model):
     iden = models.UUIDField(null = True, unique=True)
-    main_folder = models.ForeignKey(FOLDERS, null = True, blank=True, on_delete=models.SET_NULL)
+    main_folder = models.ForeignKey(Folder, null = True, blank=True, on_delete=models.SET_NULL)
     published = models.BooleanField(default=False)
     is_video = models.BooleanField(default=True)
     is_img = models.BooleanField(default=False)
@@ -99,98 +80,118 @@ class LOCAL_CONTENT(models.Model):
     
     def save(self, *args, **kwargs):
         if self.iden is None:
-            self.iden = self.create_uuid()
+            self.iden = LocalContent.objects.create_uuid()
         return super().save(*args, **kwargs)
-    
-    def create_uuid(self) -> uuid:
-        new_iden = uuid.uuid4()
-        if self.objects.filter(iden = new_iden).exists():
-            return self.create_uuid()
-        else:
-            return new_iden
     
     @property
     def local_path(self):
         return f'{self.main_folder.full_path}{self.iden}/'
+
+    @property
+    def local_resized_image_path(self):
+        return f'{self.local_path}resized-image.jpg'
+    
+    @property
+    def local_vertical_short_path(self):
+        return f'{self.local_path}vertical-final.mp4'
+
+    @property
+    def local_horizontal_short_path(self):
+        return f'{self.local_path}horizontal-final.mp4'
     
     def create_dir(self):
         os.mkdir(self.local_path)
         return str(self.local_path)
 
 
-class FACEBOOK_POST(models.Model):
+
+class PostRecord(models.Model):
+    POST_TYPE = None
+
+    is_local = models.BooleanField(default=True)
+    content_related = models.ForeignKey(LocalContent, null = True, blank=True, on_delete=models.SET_NULL)
+    post_type = models.IntegerField(null=True, blank=True,choices=POST_TYPE)    
+    is_original = models.BooleanField(default=False)    
+    date_posted = models.DateTimeField(auto_now_add=True, null = True)
+    default_title = models.ForeignKey(DefaultTilte,null = True, blank=True, on_delete=models.SET_NULL)
+    hashtags = models.ManyToManyField(Hashtag, blank=True)
+    emojis = models.ManyToManyField(Emoji, blank=True)
+    caption = models.TextField(default='')
+    social_id = models.TextField(default='')
+    use_default_title = models.BooleanField(default=True)
+    custom_title = models.TextField(default='')
+
+    class Meta:
+        abstract = True
+    
+    def __str__(self) -> str:
+        return str(self.id)
+
+
+    def save_record(
+        self, 
+        local_content, 
+        post_type:int, 
+        is_original:bool, 
+        social_id:str, 
+        emojis:list, 
+        hashtags:list, 
+        has_default_title:bool, 
+        default_title='', 
+        custom_title=''):
+        
+        try:
+            self.objects.create(
+            content_related = local_content,
+            post_type = post_type,
+            is_original = is_original,
+            social_id = social_id,
+            use_default_title = has_default_title,
+            custom_title = custom_title
+            )
+
+            if has_default_title is True:
+                self.default_title = default_title
+
+            self.emojis.add(*emojis)
+            self.hashtags.add(*hashtags)
+            self.save()
+
+            response = {
+                'result':'success',
+            }
+
+        except Exception as e:
+            logger.exception('Error while creating youtube post')
+            response = {
+                'result':'error',
+                'where':'save record',
+                'message':f'{e}'
+            }
+
+        return response
+        
+
+
+class FacebookPostRecord(PostRecord):
     POST_TYPE = ((1, 'Video'), (2, 'Image'), (3, 'Text'),
     (4, 'Repost'), (5, 'Text and video'), (6, 'Text and image'), (7, 'Shorts'))
 
-    is_local = models.BooleanField(default=True)
-    content_related = models.ForeignKey(LOCAL_CONTENT, null = True, blank=True, on_delete=models.SET_NULL)
-    post_type = models.IntegerField(null=True, blank=True,choices=POST_TYPE)    
-    is_original = models.BooleanField(default=False)    
-    date_posted = models.DateTimeField(auto_now_add=True, null = True)
-    title = models.ForeignKey(DEFAULT_TITLES,null = True, blank=True, on_delete=models.SET_NULL)
-    hashtags = models.ManyToManyField(HASHTAGS, blank=True)
-    emojis = models.ManyToManyField(EMOJIS, blank=True)
-    caption = models.TextField(default='')
-    social_id = models.TextField(default='')
 
-    def __str__(self) -> str:
-        return str(self.id)
-
-class INSTAGRAM_POST(models.Model):
+class InstagramPostRecord(PostRecord):
     POST_TYPE = ((1, 'Video'), (2, 'Image'))
 
-    is_local = models.BooleanField(default=True)
-    content_related = models.ForeignKey(LOCAL_CONTENT, null = True, blank=True, on_delete=models.SET_NULL)
-    post_type = models.IntegerField(null=True, blank=True,choices=POST_TYPE)    
-    is_original = models.BooleanField(default=False)    
-    date_posted = models.DateTimeField(auto_now_add=True, null = True)
-    title = models.ForeignKey(DEFAULT_TITLES,null = True, blank=True, on_delete=models.SET_NULL)
-    hashtags = models.ManyToManyField(HASHTAGS, blank=True)
-    emojis = models.ManyToManyField(EMOJIS, blank=True)
-    caption = models.TextField(default='')
-    social_id = models.TextField(default='')
 
-    def __str__(self) -> str:
-        return str(self.id)
-
-class TWITTER_POST(models.Model):
+class TwitterPostRecord(PostRecord):
     POST_TYPE = ((1, 'Video'), (2, 'Image'), (3, 'Text'), 
     (4, 'Repost'), (5, 'Text and video'), (6, 'Text and image'))
 
-    is_local = models.BooleanField(default=True)
-    content_related = models.ForeignKey(LOCAL_CONTENT, null = True, blank=True, on_delete=models.SET_NULL)
-    post_type = models.IntegerField(null=True, blank=True,choices=POST_TYPE)    
-    is_original = models.BooleanField(default=False)    
-    date_posted = models.DateTimeField(auto_now_add=True, null = True)   
-    default_title = models.ForeignKey(DEFAULT_TITLES,null = True, blank=True, on_delete=models.SET_NULL) 
-    hashtags = models.ManyToManyField(HASHTAGS, blank=True)
-    emojis = models.ManyToManyField(EMOJIS, blank=True)
-    caption = models.TextField(default='')
-    social_id = models.TextField(default='')
 
-    def __str__(self) -> str:
-        return str(self.id) 
-
-class YOUTUBE_POST(models.Model):   
+class YoutubePostRecord(PostRecord):   
     POST_TYPE = ((1, 'Video'), (2, 'Short'))
 
-    is_local = models.BooleanField(default=True)
-    content_related = models.ForeignKey(LOCAL_CONTENT, null = True, blank=True, on_delete=models.SET_NULL)
-    post_type = models.IntegerField(null=True, blank=True,choices=POST_TYPE)    
-    is_original = models.BooleanField(default=False)    
-    date_posted = models.DateTimeField(auto_now_add=True, null = True)
-    default_title = models.ForeignKey(DEFAULT_TITLES,null = True, blank=True, on_delete=models.SET_NULL)
-    title = models.TextField(default='',null = True)
-    hashtags = models.ManyToManyField(HASHTAGS, blank=True)
-    emojis = models.ManyToManyField(EMOJIS, blank=True)
-    caption = models.TextField(default=youtube_description)
-    social_id = models.TextField(default='')
 
-    def __str__(self) -> str:
-        return str(self.id)
-
-
-class YOUTUBE_CHANNELS(models.Model):
+class YoutubeChannel(models.Model):
     name = models.TextField(default='')
     url = models.TextField(default='')
     all_parsed = models.BooleanField(default=False)
@@ -201,16 +202,17 @@ class YOUTUBE_CHANNELS(models.Model):
         return str(self.name)
 
 
-class YOUTUBE_VIDEO_DOWNLOADED(models.Model):
+class YoutubeVideoDowloaded(models.Model):
     url = models.TextField(default='', unique=True)
     old_title = models.TextField(default='')
     new_title = models.TextField(default='')
-    original_channel = models.ForeignKey(YOUTUBE_CHANNELS, null = True, blank=True, on_delete=models.SET_NULL)
+    original_channel = models.ForeignKey(YoutubeChannel, null = True, blank=True, on_delete=models.SET_NULL)
     downloaded = models.BooleanField(default=False)
     has_caption = models.BooleanField(default=False)
     captions_downloaded = models.BooleanField(default=False)
     download_date = models.DateTimeField(auto_now_add=True, null = True)
-    content_related = models.ForeignKey(LOCAL_CONTENT, null = True, blank=True, on_delete=models.SET_NULL)
+    content_related = models.ForeignKey(LocalContent, null = True, blank=True, on_delete=models.SET_NULL)
+    objects = YoutubeVideoDowloadedManager()
 
     def __str__(self) -> str:
         return str(self.old_title)

@@ -2,12 +2,10 @@ import requests
 
 from settings import Motdepasse
 
-tiktok_Client_Key=  Motdepasse().get_keys('TIKTOK_CLIENT_KEY')
-
-tiktok_Client_Secret= Motdepasse().get_keys('TIKTOK_CLIENT_SECRET')
-
-class TIKTOK():
-    def __init__(self, client_key, client_secret):
+class Tiktok():
+    def __init__(self, 
+    client_key=Motdepasse().get_keys('TIKTOK_CLIENT_KEY'), 
+    client_secret=Motdepasse().get_keys('TIKTOK_CLIENT_SECRET')):
         self.client_key = client_key
         self.client_secret = client_secret
         self.post_url = 'https://open-api.tiktok.com/share/video/upload/'

@@ -1,37 +1,22 @@
-
-
 import os
 import cloudinary
 import random
 import time
 import logging
+import sys
+
 from editing import resize_image, create_short_from_image
 from settings import Motdepasse
-
 from modelos.models import (
-    
-    DEFAULT_TITLES,
-    LOCAL_CONTENT,
-    FOLDERS,
-    HASHTAGS,
-    FACEBOOK_POST,
-    
-    TWITTER_POST,
-    
-    YOUTUBE_VIDEO_DOWNLOADED,
-    
-)
-
-ig_account_id = '17841444650537865'
+    Folder,
+    LocalContent,
+    YoutubeVideoDowloaded
+    )
 
 # year = 2022
 # month = 1
 # day = datetime.datetime.now().day
 # hour = 17
-
-horizontal_video_string = 'horizontal-final.mp4'
-
-vertical_video_string = 'vertical-final.mp4'
 
 logger = logging.getLogger('longs')
 
@@ -42,78 +27,66 @@ cloudinary.config(
   secure = True
 )
 
-old_fb_page_access_token = Motdepasse().get_keys('OLD_FB_PAGE_ACCESS_TOKEN')
-user_access_token = Motdepasse().get_keys('FB_USER_ACCESS_TOKEN')
 
-old_faceboo_page_id = '107326904530301'
-
-new_facebook_page_id = '105836681984738'
-
-new_long_live_page_token = Motdepasse().get_keys('NEW_FB_PAGE_ACCESS_TOKEN')
-
-
-class MULTIPOSTAGE:
+class Multipostage:
     def __init__(self) -> None:
-        from socialmedias.facepy import FACEBOOK
-        from socialmedias.instapy import INSTAGRAM
-        from socialmedias.youpy import YOUTUBE
-        from socialmedias.tweetpy import TWITEER
+        from socialmedias.facepy import Facebook
+        from socialmedias.instapy import Instagram
+        from socialmedias.youpy import Youtube
+        from socialmedias.tweetpy import Twitter
 
-        self.new_facebook = FACEBOOK(user_token=user_access_token, page_access_token=new_long_live_page_token, page_id=new_facebook_page_id)
-        self.old_facebook = FACEBOOK(user_token=user_access_token, page_access_token=old_fb_page_access_token, page_id=old_faceboo_page_id)
-        self.insta = INSTAGRAM(user_access_token=user_access_token ,page_access_token=new_long_live_page_token, ig_account_id=ig_account_id)
-        self.youtube = YOUTUBE()
-        self.twitter = TWITEER()
-    
+        old_fb_page_access_token = Motdepasse().get_keys('OLD_FB_PAGE_ACCESS_TOKEN')
+        new_long_live_page_token = Motdepasse().get_keys('NEW_FB_PAGE_ACCESS_TOKEN')
 
-    def default_information(self,media_id):
-        default_info = self.insta.get_media_info(media_id)
-        print(default_info)
-        return default_info
-    
+        old_faceboo_page_id = '107326904530301'
+        new_facebook_page_id = '105836681984738'
+        ig_account_id = '17841444650537865'
 
-    def share_new_long_yb_video(self, video):
+        self.new_facebook = Facebook(page_access_token=new_long_live_page_token, page_id=new_facebook_page_id)
+        self.old_facebook = Facebook(page_access_token=old_fb_page_access_token, page_id=old_faceboo_page_id)
+        self.insta = Instagram(page_access_token=new_long_live_page_token, ig_account_id=ig_account_id)
+        self.youtube = Youtube()
+        self.twitter = Twitter()
 
-        if video is None:
-            video = YOUTUBE_VIDEO_DOWNLOADED.objects.filter(downloaded = False, has_caption=True)[0]
-            try:
-                logger.info(f'Starting the downloading process with {video}')
-                local_content_related = self.youtube.download_youtube_video(video=video, get_captions = True)
-                video.downloaded = True
-                video.save()
-                logger.info(f'Download succesfull {local_content_related}')
-            except Exception as e:
-                logger.error(f'error desde managmenet al descargar {e}')
-                video.downloaded = False
-                video.save()
-                return 'error' 
-        else:
-            video = video
-            local_content_related = video.content_related
-            if video.captions_downloaded is False:
-                self.youtube.get_caption(local_content_related, video)
-                
-        yb_title = video.old_title
+
+
+    def download_captions(self):
+        for video in YoutubeVideoDowloaded.objects.filter(downloaded = True, captions_downloaded=False):
+            captions_response = self.youtube.get_caption(video.content_related, video)
+
+            if captions_response['result'] == 'error':
+                video.content_related.has_consistent_error = True
+                video.content_related.error_msg = captions_response['message']
+                video.content_related.save()
+                continue
+        logger.info('Captions donwloaded done')
+
+
+    def share_long(self, retry=0):
+        retry = retry
+        video = LocalContent.objects.available_video
+
+        logger.info(f'Starting the uploading process')
+        
+        yb_response = self.youtube.upload_default_english_long_video(video)
+
+        if yb_response['result'] == 'error':            
+            retry += 1
+            if retry == 5:
+                logger.info(f'Error with the following video --> {video.id}')
+                sys.exit()
+            logger.info(f'Error with the following video --> {video.id}, starting again with an other')
+            return self.share_long(retry)
+        
+        custom_title = video.old_title
         if video.new_title:
-            yb_title = video.new_title
+            custom_title = video.new_title
+            
+        logger.info(f'Starting the repost process of {custom_title} in 1 min')
+        time.sleep(60)
+        repost_response = self.repost_youtube_video(custom_title, yb_response['extra'])
 
-        logger.info(f'Starting the uploading process with {yb_title}')
-        yb_video_id = self.youtube.upload_and_post_video_youtube(local_content_related=local_content_related,post_type=1, yb_title=yb_title, privacyStatus='public')
-        
-
-        if yb_video_id == 'no-captions':                
-            return 'error'
-        
-        if yb_video_id == 'error-uploading-video':                
-            return 'error'
-
-        logger.info(f'Starting the repost process with {yb_video_id}')
-        logger.info('Giving time to upload the video and captions')
-        time.sleep(20)
-        repost = self.repost_youtube_video(yb_title, yb_video_id)
-
-        if repost == 'success':
-            return 'success'
+        return repost_response
         
 
     def repost_youtube_video(self, yb_title, yb_video_id, frase_default=''):
@@ -122,9 +95,7 @@ class MULTIPOSTAGE:
 
         query_default_titles = DEFAULT_TITLES.objects
         if frase_default == '':
-            all_count = query_default_titles.all().count()
-            num = random.randint(1, all_count-1)
-            default_title = query_default_titles.get(id = num)
+            default_title = query_default_titles.random_title
         else:
             default_title = query_default_titles.get_or_create(title = frase_default)[0]
 
@@ -151,39 +122,44 @@ class MULTIPOSTAGE:
             self.old_facebook.share_post_to_old_page(yb_title,fb_post_id_repost)
         except Exception as e:
             logger.info(e)
-
-        facebook_post = FACEBOOK_POST.objects.create(
-            is_local = False,
-            title = default_title,
-            post_type = 4,
-            caption = yb_title)
-        
-        for hashtag in fb_hashtags:
-            facebook_post.hashtags.add(hashtag)
-        facebook_post.social_id = fb_post_id['post_id']
-        facebook_post.save()
+            return
+        else:
+            facebook_post = FACEBOOK_POST.objects.create(
+                is_local = False,
+                title = default_title,
+                post_type = 4,
+                caption = yb_title)
+            
+            for hashtag in fb_hashtags:
+                facebook_post.hashtags.add(hashtag)
+            facebook_post.social_id = fb_post_id['post_id']
+            facebook_post.save()
         
         logger.info('Sharing the video on twitter')
 
         tw_status = f"""{fb_title}
         {url_to_share}
         """
-        tweeter_post_id = self.twitter.tweet_text(tw_status,tw_hashtags)
-        logger.info('Post shared on twitter')
+        try:
+            tweeter_post_id = self.twitter.tweet_text(tw_status,tw_hashtags)
+            logger.info('Post shared on twitter')
+        except Exception as e:
+            logger.info(e)
+            return
+        else:
+            twitter_post = TWITTER_POST.objects.create(
+                is_local = False,
+                default_title = default_title,
+                post_type = 4,
+                caption = tw_status)
 
-        twitter_post = TWITTER_POST.objects.create(
-            is_local = False,
-            default_title = default_title,
-            post_type = 4,
-            caption = tw_status)
+            for hashtag in tw_hashtags:
+                twitter_post.hashtags.add(hashtag)
 
-        for hashtag in tw_hashtags:
-            twitter_post.hashtags.add(hashtag)
+            twitter_post.social_id = tweeter_post_id['id']
+            twitter_post.save()
 
-        twitter_post.social_id = tweeter_post_id['id']
-        twitter_post.save()
-
-        return 'success'
+            return 'success'
     
 
     def create_post_image(self):
@@ -191,16 +167,16 @@ class MULTIPOSTAGE:
         if random.randint(1,2) == 1:
             name,top,bottom = 'logos', 58, 5
         
-        original_folder = FOLDERS.objects.get(name = name)
+        original_folder = Folder.objects.get(name = name)
         images_av = os.listdir(original_folder.full_path)[0]
 
         image_path = f'{original_folder.full_path}{images_av}'
         if image_path.endswith('.jpg') is False:
             image_path = f'{image_path}/{images_av}.jpg'
 
-        final_folder = FOLDERS.objects.get(name = 'resized images')
+        final_folder = Folder.objects.resized_folder
 
-        local_content = LOCAL_CONTENT.objects.create(
+        local_content = LocalContent.objects.create(
             main_folder = final_folder,
             is_video = False,
             is_img = True,
@@ -220,11 +196,11 @@ class MULTIPOSTAGE:
     
 
     def create_post_short(self):
-        carpeta = FOLDERS.objects.shorts_folder
+        carpeta = Folder.objects.shorts_folder
 
-        local_content = LOCAL_CONTENT.objects.available_image_for_short        
+        local_content = LocalContent.objects.available_image_for_short        
 
-        new_content = LOCAL_CONTENT.objects.create(
+        new_content = LocalContent.objects.create(
             main_folder = carpeta,
             is_video = True,
             reused = True,
@@ -232,19 +208,19 @@ class MULTIPOSTAGE:
         )
         
         
-        image = local_content.local_path + 'resized-image.jpg'
+        image = local_content.local_resized_image_path
         new_dir = new_content.create_dir()
         
-        num = random.randint(25, 33)
+        fps_and_duration = random.randint(25, 33)
         
-        final_short = create_short_from_image(new_dir, image, num, num)
+        create_short_from_image(new_dir, image, fps_and_duration)
         
-        yb_video_id = self.youtube.upload_youtube_short(self, new_content)
-        self.twitter.default_short_tweet(new_content, final_short)
+        yb_post_result = self.youtube.upload_post_youtube_short(new_content)
 
-        return 'success'
+        if yb_post_result != 'error-uploading-video':
+            self.repost_youtube_video(' ', yb_post_result, frase_default='')
         
+        insta_post_result = self.insta.default_post_on_instagram(local_content, post_type=1)
         
-
-
-
+        return insta_post_result
+        

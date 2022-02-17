@@ -3,30 +3,31 @@ import requests
 import sys
 import logging
 import datetime
-from settings import Motdepasse
+from settings import Motdepasse, error_handling
 
-from modelos.models import HASHTAGS, DEFAULT_TITLES
-
-horizontal_video_string = 'horizontal-final.mp4'
-
-FACEBOOK_MAIN_URL = 'https://graph.facebook.com/'
+# from modelos.models import 
 
 logger = logging.getLogger('longs')
 
-class FACEBOOK():
-    def __init__(self, user_token='', 
-    app_id = '', app_secret=Motdepasse().get_keys('FACEBOOK_APP_SECRET'), 
-    long_lived_user_token=Motdepasse().get_keys('FB_USER_ACCESS_TOKEN'), 
-    page_access_token='', 
-    page_id=''):
+class Facebook():
+    def __init__(
+        self, 
+        user_token=Motdepasse().get_keys('FB_USER_ACCESS_TOKEN'), 
+        app_id = '',
+        facebook_page_name = 'InversionesyFinanzas',
+        app_secret=Motdepasse().get_keys('FACEBOOK_APP_SECRET'), 
+        long_lived_user_token=Motdepasse().get_keys('FB_USER_ACCESS_TOKEN'), 
+        page_access_token='', 
+        page_id=''):
 
         self.page_id = page_id
+        self.facebook_page_name = facebook_page_name
         self.user_token = user_token
         self.app_id = app_id
         self.app_secret = app_secret
         self.long_lived_user_token = long_lived_user_token
         self.page_access_token = page_access_token
-        self.facebook_url = FACEBOOK_MAIN_URL
+        self.facebook_url = 'https://graph.facebook.com/'
         self.facebook_video_url = "https://graph-video.facebook.com/"
     
     def get_long_live_user_token(self):
@@ -124,7 +125,7 @@ class FACEBOOK():
     
 
     def post_content(self, type:str, content, files = None):
-        logger.info("Posting file...")
+        logger.info("Posting file on facebook...")
         if type == 'video':
             re = requests.post(f'{self.facebook_video_url}{self.page_id}/videos',files=files, data = content)
         elif type == 'text':
@@ -147,9 +148,9 @@ class FACEBOOK():
             sys.exit()
     
 
-    def share_post_to_old_page(self, yb_title, post_id):
-        url_to_share = f'https://www.facebook.com/InversionesyFinanzas/posts/{post_id}&show_text=true'
-        self.post_text(text=f'No te pierdas el último post {yb_title}', link = url_to_share)
+    def share_facebook_post(self, post_id, yb_title):
+        url_to_share = f'https://www.facebook.com/{self.facebook_page_name}/posts/{post_id}&show_text=true'
+        self.post_text(text=f'{random_title} {yb_title}', link = url_to_share)
     
 
 

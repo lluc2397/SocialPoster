@@ -55,19 +55,19 @@ def convert_pictures_to_video(new_dir,image, fps, duration, is_vertical=True):
 
 def joint_video_audio(videofile, final_directory, is_vertical=True, codec="libx264"):
     #generate audio file cut
-    audio_directory = FOLDERS.objects.audio_folder
+    audio_directory = FOLDERS.objects.audio_folder.full_path
     audiofile = random.choice(os.listdir(audio_directory))
 
     start_time = random.randint(0, 130)
     end_time = start_time + 20
 
     #get cut audio file
-    final_audio = f'{final_directory}/cutmusic.mp3'
+    final_audio = f'{final_directory}cutmusic.mp3'
     if is_vertical is True:
 
-        final_video = f'{final_directory}/vertical-final.mp4'
+        final_video = f'{final_directory}vertical-final.mp4'
     else:
-        final_video = f'{final_directory}/horizontal-final.mp4'
+        final_video = f'{final_directory}horizontal-final.mp4'
     #get original audio and cut it
     ffmpeg_extract_subclip(audio_directory+audiofile, start_time, end_time, targetname=final_audio)
 
@@ -84,9 +84,9 @@ def joint_video_audio(videofile, final_directory, is_vertical=True, codec="libx2
     return final_video
 
 
-def create_short_from_image(new_dir, image, fps, duration, is_vertical=True):
-    video = convert_pictures_to_video(new_dir,image, fps, duration, is_vertical)
-    final_video = joint_video_audio(video, new_dir, is_vertical, codec="HECV")
+def create_short_from_image(new_dir, image, fps_and_duration, is_vertical=True):
+    video = convert_pictures_to_video(new_dir,image, fps_and_duration, fps_and_duration, is_vertical)
+    final_video = joint_video_audio(video, new_dir, is_vertical)
     return final_video
 
 

@@ -9,7 +9,7 @@ site = 'https://inversionesyfinanzas.xyz'
 
 
 
-class TWITEER:
+class Twitter:
     def __init__(self) -> None:
         self.CONSUMER_KEY = Motdepasse().get_keys('consumer_key')
         self.CONSUMER_SECRET = Motdepasse().get_keys('consumer_secret')

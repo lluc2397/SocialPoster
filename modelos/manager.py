@@ -1,5 +1,6 @@
 import sys 
 import random
+import uuid
 
 try:
     from django.db import models
@@ -17,9 +18,10 @@ class TitlesManager(models.Manager):
 
 class EmojiManager(models.Manager):
 
-    @property
-    def random_emojis(self):
-        emojis = [emoji for emoji in self.all()]
+    def random_emojis(self, num):        
+        emojis = []
+        for i in range(num):
+            emojis.apppend(self.get(id = random.randint(1,self.all().count())))
         return emojis
 
 
@@ -47,6 +49,13 @@ class HashtagsManager(models.Manager):
 
 
 class ContentManager(models.Manager):
+
+    def create_uuid(self) -> uuid:
+        new_iden = uuid.uuid4()
+        if self.filter(iden = new_iden).exists():
+            return self.create_uuid()
+        else:
+            return new_iden
     
     @property
     def available_video(self):
@@ -83,5 +92,10 @@ class FoldersManager(models.Manager):
     @property
     def audio_folder(self):
         return self.get(name = 'audio')
-    
-    
+
+
+class YoutubeVideoDowloadedManager(models.Manager):
+
+    @property
+    def video_downloaded(self):
+        return self.filter(downloaded = True, captions_downloaded=True)[0]

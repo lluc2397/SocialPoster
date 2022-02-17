@@ -1,18 +1,15 @@
 import requests
 import time
-import os
+import logging
 
 import cloudinary.uploader
 
-from editing import create_img_from_frame
+# from modelos.models import
 
-from modelos.models import DEFAULT_TITLES,INSTAGRAM_POST,HASHTAGS
+logger = logging.getLogger('longs')
 
-horizontal_video_string = 'horizontal-final.mp4'
+class Instagram():
 
-FACEBOOK_MAIN_URL = 'https://graph.facebook.com/'
-
-class INSTAGRAM():
     def __init__(self, user_access_token='' ,page_access_token='', ig_account_id=''):
         self.ig_account_id = ig_account_id
         self.page_access_token = page_access_token
@@ -22,10 +19,11 @@ class INSTAGRAM():
 
         self.ig_access_token_url = f'access_token={self.page_access_token}'    
 
-        self.instagram_url = f'{FACEBOOK_MAIN_URL}{self.ig_account_id}/'
+        self.instagram_url = f'https://graph.facebook.com/{self.ig_account_id}/'
 
         self.post_url = f'{self.instagram_url}media_publish?{self.ig_access_token_url}&creation_id='
     
+
 
     def get_ig_access_token(self, app_id):
         url = f'{self.main_instagram_url}access_token'
@@ -41,6 +39,8 @@ class INSTAGRAM():
         if re.status_code == 200:
             access_token = re.json()['access_token']
 
+
+
     def refresh_long_live_user_token(self):
         url = f'{self.main_instagram_url}refresh_access_token'
 
@@ -55,156 +55,7 @@ class INSTAGRAM():
             access_token = re.json()['access_token']
     
 
-    def check_post_status(self, post_id):
-        extra = 'fields=status_code,status'
-        status_url = f'{FACEBOOK_MAIN_URL}{post_id}?{extra}&{self.ig_access_token_url}'
 
-        s = requests.get(status_url)
-        status = s.json()
-        
-        return status
-    
-    def post_ig_image(self,caption, content_url):
-
-        print('Uploading to cloudinary')
-
-        uploaded_image = cloudinary.uploader.upload(content_url)
-
-        content_file = uploaded_image['secure_url']
-
-        cloudinary_asset_id = uploaded_image['public_id']
-
-        data = {
-            'image_url': content_file,
-            'caption': caption,
-            'access_token': self.page_access_token
-        }
-
-        response = {
-            'data':data,
-            'cloudinary_asset_id': cloudinary_asset_id,
-            'cloudinary_asset_type': 'img'
-        }
-        return response
-    
-
-
-    def post_ig_video(self, caption, content_url):
-
-        print('Uploading to cloudinary')
-
-        uploaded_video = cloudinary.uploader.upload(content_url,resource_type = "video")
-
-        content_file = uploaded_video['secure_url']
-
-        cloudinary_asset_id = uploaded_video['public_id']
-
-        data = {
-            'media_type':"VIDEO",
-            'video_url': content_file,
-            'caption': caption,
-            'access_token': self.page_access_token
-        }
-
-        response = {
-            'data':data,
-            'cloudinary_asset_id': cloudinary_asset_id,
-            'cloudinary_asset_type': 'video'
-        }
-        return response
-    
-
-
-    def pre_post_ig(self, caption, content_url, upload_cloudinary, media_type = "VIDEO"):        
-
-        if media_type == 'VIDEO':
-            data = self.post_ig_video(caption, content_url)
-         
-        else:
-            data = self.post_ig_image(caption, content_url)
-            
-        print('Posting on Instagram')
-        pre_post = requests.post(f'{self.instagram_url}media', data = data['data'])
-
-        response = {
-            'ig_post_id': pre_post.json()['id'],
-            'cloudinary_asset_id': data['cloudinary_asset_id'],
-            'cloudinary_asset_type': data['cloudinary_asset_type']
-        }
-
-        return response
-    
-
-    def publish_content_ig(self, post_id, destroy_asset):
-        ig_post_id = post_id['ig_post_id']
-        try:
-            re = requests.post(f'{self.post_url}{ig_post_id}')
-            status = self.check_post_status(ig_post_id)
-
-            if status['status_code'] == 'PUBLISHED':
-                
-
-                if destroy_asset is True:
-                    print('Video published, destroying asset on Cloudinary')
-                    
-                    if post_id['cloudinary_asset_type'] == 'video':
-                        cloudinary.uploader.destroy(post_id['cloudinary_asset_id'], resource_type = 'video')
-                    else:
-                        cloudinary.uploader.destroy(post_id['cloudinary_asset_id'])
-
-                
-                return ig_post_id
-            else:
-                print('el satus no es published')
-        except Exception as e:
-            print('error when publishing', e)
-        
-
-    def post_ig(self, caption= "", hashtags=[], video_url= "", image_url= "", upload_cloudinary = True, destroy_asset = True):
-        """
-        destroy_asset eliminates the previous uploaded asset to Cloudinary
-        
-        set upload_cloudinary to False if you upload your video from a remote server
-        """
-
-        if caption == '':
-            caption = self.create_ig_caption(caption, hashtags)
-
-        if upload_cloudinary is True:
-            if image_url == "":
-                post_id = self.pre_post_ig(caption, video_url, upload_cloudinary = upload_cloudinary)
-            
-            else:
-                post_id = self.pre_post_ig(caption, image_url, media_type = 'IMAGE', upload_cloudinary = upload_cloudinary)
-        
-        ig_post_id = post_id['ig_post_id']
-
-        status = self.check_post_status(ig_post_id)
-
-        if status['status_code'] == 'EXPIRED' or status['status_code'] == 'ERROR':
-            print(status)
-
-        if status['status_code'] == 'FINISHED':
-            self.publish_content_ig(post_id, destroy_asset)
-            return ig_post_id
-
-        while status['status_code'] == 'IN_PROGRESS':
-            time.sleep(10)
-            try:
-                status = self.check_post_status(ig_post_id)
-
-                if status['status_code'] == 'EXPIRED' or status['status_code'] == 'ERROR':
-                    print(status)
-                    break
-                if status['status_code'] == 'FINISHED':
-                    self.publish_content_ig(post_id, destroy_asset)
-                    return ig_post_id
-
-            except Exception as e:
-                print(e)
-                break
-    
-    
     def get_quota(self):
 
         extra = 'fields=config,quota_usage'
@@ -216,29 +67,184 @@ class INSTAGRAM():
     
 
 
-    def default_post_on_instagram(self, local_content,image_url):
+    def check_post_status(self, post_id):
+        extra = 'fields=status_code,status'
+        status_url = f'{FACEBOOK_MAIN_URL}{post_id}?{extra}&{self.ig_access_token_url}'
+
+        s = requests.get(status_url)
+        status = s.json()
+        
+        return status    
+
+
+
+    def _upload_to_cloudinary(self, content_url, resource_type):
+
+        uploaded_content = cloudinary.uploader.upload(content_url,resource_type = resource_type)
+
+        content_url = uploaded_content['secure_url']
+
+        cloudinary_asset_id = uploaded_content['public_id']
+
+        response = {
+            'content_url':content_url,
+            'cloudinary_asset_id': cloudinary_asset_id
+        }
+
+        return response
+    
+
+
+    def _send_content_to_instagram(self, caption, content_url, resource_type, send_from):        
+        
+        if send_from == 'cloudinary':
+            cloudinary_response = self._upload_to_cloudinary(content_url, resource_type)
+
+        if resource_type == "video":
+
+            data = {
+                'media_type':"VIDEO",
+                'video_url': cloudinary_response['content_url'],
+                'caption': caption,
+                'access_token': self.page_access_token
+            }
+
+        else:
+            data = {
+                'image_url': cloudinary_response['content_url'],
+                'caption': caption,
+                'access_token': self.page_access_token
+            }
+        
+        try:
+            pre_post = requests.post(f'{self.instagram_url}media', data = data)
+            
+            print('_send_content_to_instagram pre post',pre_post.content)
+
+            response = {
+                'result':'success',
+                'content_pre_published_id': pre_post.json()['id'],
+                'cloudinary_asset_id': cloudinary_response['cloudinary_asset_id'],
+                'cloudinary_resource_type': resource_type,
+                'cloudinary_url': cloudinary_response['content_url'],
+                'caption':caption
+            }
+        
+        except Exception as e:
+            logger.exception('Error while publishing sending content to instagram')
+            response = {
+                'result':'error',
+                'where':'instagram sending post',
+                'message':f'{e}'
+            }
+
+        return response
+    
+
+
+    def _publish_uploaded_content(self, content_pre_published_data):
+        try:
+            post_id = content_pre_published_data['content_pre_published_id']
+
+            status = self.check_post_status(post_id)
+
+            if status['status_code'] == 'FINISHED':
+                requests.post(f'{self.post_url}{post_id}')
+
+                time.sleep(5)
+                return self._publish_uploaded_content(content_pre_published_data)
+
+            elif status['status_code'] == 'PUBLISHED':
+
+                response = {
+                    'result':'success',
+                    'extra':post_id
+                }
+            
+            elif status['status_code'] == 'IN_PROGRESS':
+                time.sleep(5)
+                return self._publish_uploaded_content(content_pre_published_data)
+            
+            elif status['status_code'] == 'EXPIRED':
+
+                response = {
+                    'result':'error',
+                    'where':'status expired',
+                    'extra': content_pre_published_data
+                }
+
+            elif status['status_code'] == 'ERROR':
+                response = {
+                    'result':'error',
+                    'where':'status error',
+                    'extra': content_pre_published_data
+                }
+
+        except Exception as e:
+            logger.exception('Error while publishing uploaded content to instagram')
+            response = {
+                'result':'error',
+                'where':'instagram post publishing',
+                'message':f'{e}'
+            }
+    
+        return response
+        
+
+
+    def post_on_instagram(self, caption= "", hashtags=[], content_url='', resource_type = "image", send_from = 'cloudinary', destroy_asset = True):
+        """
+        send_from indicates the location, default is cloudinary
+
+        destroy_asset eliminates the previous uploaded    
+        """
+
+        if caption == '':
+            caption = self._create_ig_caption(caption, hashtags)
+
+        content_pre_published_data = self._send_content_to_instagram(caption, content_url, resource_type=resource_type, send_from=send_from)
+
+        instagram_post_result = self._publish_uploaded_content(content_pre_published_data)
+
+        if destroy_asset is True:
+                if send_from == 'cloudinary':
+                    cloudinary.uploader.destroy(content_pre_published_data['cloudinary_asset_id'], resource_type = content_pre_published_data['cloudinary_resource_type'])
+            
+        return instagram_post_result
+    
+    
+
+    def default_post_on_instagram(self, local_content, post_type=2):
         list_hashtags = HASHTAGS.objects.random_ig_hashtags
 
         hashtags = ' '.join([hashtag.name for hashtag in list_hashtags])
         
-        title = DEFAULT_TITLES.objects.random_title
-            
+        title = DEFAULT_TITLES.objects.random_title            
 
-        ig_cap = self.create_ig_caption(title.title, hashtags)
+        caption = self._create_ig_caption(title.title, hashtags)
 
-        ig_id = self.post_ig(ig_cap, image_url = image_url)
+        resource_type = "image"
+        content_url = local_content.local_resized_image_path
+        if post_type == 1:
+            content_url = local_content.local_vertical_short_path
+            resource_type = "video"
 
-        ig_post = INSTAGRAM_POST.objects.create(
-            content_related = local_content,
-            post_type = 2,
-            title = title,
-            social_id = ig_id,
-        )
+        post_result = self.post_on_instagram(caption, content_url = content_url, resource_type=resource_type)
 
-        for hashtag in list_hashtags:
-            ig_post.hashtags.add(hashtag)
+        if post_result['result'] == 'success':
+            post_id = post_result['extra']
 
-        return ig_id
+            ig_record = INSTAGRAM_POST.objects.create(
+                content_related = local_content,
+                post_type = post_type,
+                title = title,
+                social_id = post_id,
+            )
+
+            for hashtag in list_hashtags:
+                ig_record.hashtags.add(hashtag)
+
+        return post_result
     
 
     def get_media_info(self, media_id):
@@ -256,7 +262,7 @@ class INSTAGRAM():
 
 
     
-    def create_ig_caption(self, title, hashtags):        
+    def _create_ig_caption(self, title, hashtags):        
         instagram_caption = f"""
         {title}
         .
