@@ -82,25 +82,28 @@ class Multipostage:
 
     def share_long(self, retry=0):
         retry = retry
-        video = LocalContent.objects.available_downloaded_video
-
-        logger.info(f'Starting the uploading process')
+        video = LocalContent.objects.available_downloaded_video       
         
         yb_response = self.youtube.upload_default_english_long_video(video)
 
         if yb_response['result'] == 'error':
+            error_message = yb_response['message']
+            
             if yb_response['where'] == 'initialize upload youtube video' or yb_response['where'] == 'upload caption youtube video':
-                error_message = yb_response['message']
+                
                 logger.error(f'Error uploading videos --> {error_message}')
                 sys.exit()
             else:                
                 retry += 1
                 if retry == 5:
-                    logger.error(f'Error with the following video --> {video.id}')
+                    logger.error(f'Error with the following video --> {video.id} {error_message}')
                     sys.exit()
-                logger.error(f'Error with the following video --> {video.id}, starting again with an other')
+                logger.error(f'Error with the following video --> {video.id}, starting again with an other {error_message}')
                 time.sleep(60)
                 return self.share_long(retry)
+        
+        video.content_related.published = True
+        video.content_related.save()
         
         custom_title = video.old_title
         if video.new_title:
