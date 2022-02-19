@@ -240,6 +240,9 @@ class Multipostage:
         
         create_short_from_image(new_dir, image, fps_and_duration)
 
+        local_content.reused = True
+        local_content.save()
+
         return new_content
 
 

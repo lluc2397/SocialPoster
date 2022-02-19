@@ -1,0 +1,29 @@
+
+ERROR 2022-02-08 19:21:09,509 youpy 22051 140190633764672 Error 2022-02-08 19:21:09.509316 desde captions error video https://savesubs.com/process?url=https://www.youtube.com/watch?v=MYVhRjj1V_w ---> Message: no such element: Unable to locate element: {"method":"css selector","selector":"[name="slang"]"}
+  (Session info: headless chrome=98.0.4758.80)
+Stacktrace:
+#0 0x55bed4e1b263 <unknown>
+#1 0x55bed4b7f0d8 <unknown>
+#2 0x55bed4bb45e1 <unknown>
+#3 0x55bed4bb47a1 <unknown>
+#4 0x55bed4be7734 <unknown>
+#5 0x55bed4bd1ded <unknown>
+#6 0x55bed4be541a <unknown>
+#7 0x55bed4bd1cb3 <unknown>
+#8 0x55bed4ba7a0c <unknown>
+#9 0x55bed4ba8ab5 <unknown>
+#10 0x55bed4e48666 <unknown>
+#11 0x55bed4e5fbed <unknown>
+#12 0x55bed4e4a51e <unknown>
+#13 0x55bed4e60574 <unknown>
+#14 0x55bed4e3e39c <unknown>
+#15 0x55bed4e79d78 <unknown>
+#16 0x55bed4e79ef8 <unknown>
+#17 0x55bed4e93846 <unknown>
+#18 0x7fb0ee422609 <unknown>
+
+
+ERROR 2022-02-09 07:21:20,124 youpy 16700 139995583428416 Error when uploading--> invalid_grant: Token has been expired or revoked. 
+
+ERROR 2022-02-12 05:25:33,918 youpy 44630 140079192618816 Error when uploading captions--> invalid_grant: Token has been expired or revoked. 
+

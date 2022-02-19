@@ -124,8 +124,6 @@ class Instagram():
         
         try:
             pre_post = requests.post(f'{self.instagram_url}media', data = data)
-            
-            logger.info(f'_send_content_to_instagram pre post {pre_post.content}')
 
             pre_post_data = {
                 'instagram_pre_published_id': pre_post.json()['id'],
