@@ -91,19 +91,16 @@ class Multipostage:
             
             if yb_response['where'] == 'initialize upload youtube video' or yb_response['where'] == 'upload caption youtube video':
                 
-                logger.error(f'Error uploading videos --> {error_message}')
+                logger.error(f'Error uploading videos --> {error_message} exiting program')
                 sys.exit()
             else:                
                 retry += 1
                 if retry == 5:
-                    logger.error(f'Error with the following video --> {video.id} {error_message}')
+                    logger.error(f'Error with the following video --> {error_message} exiting program')
                     sys.exit()
                 logger.error(f'Error with the following video --> {video.id}, starting again with an other {error_message}')
                 time.sleep(60)
                 return self.share_long(retry)
-        
-        video.content_related.published = True
-        video.content_related.save()
         
         custom_title = video.old_title
         if video.new_title:
@@ -208,7 +205,7 @@ class Multipostage:
         
         if resized_image_response['result'] == 'error':
             if retry == 5:
-                logger.error('Max reties to create an image')
+                logger.error('Max reties to create an image exiting program')
                 sys.exit()
             retry += 1
             return self.share_image(cont_type, retry=retry)
@@ -252,7 +249,7 @@ class Multipostage:
         
         if prepare_short_response['result'] == 'error':
             if retry == 5:
-                logger.error('Max reties to create a short')
+                logger.error('Max retries to create a short exiting program')
                 sys.exit()
             retry += 1
             return self.share_short(retry=retry)
