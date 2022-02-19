@@ -47,7 +47,7 @@ def main():
 
     if all(value is False for value in list(args_dict.values())):
         # Multipostage().download_captions()
-        desktop_notification('Selecciona una opción')           
+        desktop_notification('Selecciona una opción', '-short, -long, -img, -test')           
 
     if args_dict['long'] is True:
         Multipostage().share_long()

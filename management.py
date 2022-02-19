@@ -50,10 +50,7 @@ class Multipostage:
 
     def tests(self):
         
-
-        a = FacebookPostRecord.objects.get(social_id = 'abracadabra')
-
-        print(a.delete())
+        print()
 
 
     def delete_non_saved_local(safe):
@@ -166,6 +163,7 @@ class Multipostage:
             fb_post_id_repost = fb_post_response['extra'].split('_')[1]
             self.old_facebook.share_facebook_post(post_id = fb_post_id_repost, yb_title = yb_title)
 
+
     @error_handling('prepare resized image')
     def prepare_resized_image(self, cont_type):
         """
@@ -259,4 +257,7 @@ class Multipostage:
         local_content = prepare_short_response['extra']
         self.youtube.upload_default_short(local_content)
         self.twitter.tweet(local_content, post_type=1)
+
+        local_content.published = True
+        local_content.save()
         

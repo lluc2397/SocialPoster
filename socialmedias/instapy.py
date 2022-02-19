@@ -22,9 +22,11 @@ class Instagram():
 
         self.main_instagram_url = 'https://graph.instagram.com/'
 
+        self.main_facebook_url = 'https://graph.facebook.com/'
+
         self.ig_access_token_url = f'access_token={self.page_access_token}'    
 
-        self.instagram_url = f'https://graph.facebook.com/{self.ig_account_id}/'
+        self.instagram_url = f'{self.main_facebook_url}{self.ig_account_id}/'
 
         self.post_url = f'{self.instagram_url}media_publish?{self.ig_access_token_url}&creation_id='
     
@@ -74,9 +76,8 @@ class Instagram():
 
     def check_post_status(self, post_id):
         extra = 'fields=status_code,status'
-        status_url = f'{self.main_instagram_url}{post_id}?{extra}&{self.ig_access_token_url}'
-
-        s = requests.get(status_url)
+        status_url = f'{self.main_facebook_url}{post_id}?{extra}&{self.ig_access_token_url}'
+        s = requests.get(status_url)        
         status = s.json()
         
         return status    
