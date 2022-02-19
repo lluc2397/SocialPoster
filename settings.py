@@ -2,6 +2,7 @@ import os
 import sys
 import json
 from pathlib import Path
+import cloudinary
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -49,11 +50,20 @@ def error_handling(where, extra=None):
 
 
 def print_progress_bar(actua_position, total_size, extra_text):
-    n_bar = 10 #size of progress bar
+    bar_size = 10 
     percentage = actua_position/total_size
     sys.stdout.write('\r')
-    sys.stdout.write(f"[{'=' * int(n_bar * percentage):{n_bar}s}] {int(100 * percentage)}%  {extra_text}")
+    sys.stdout.write(f"[{'=' * int(bar_size * percentage):{bar_size}s}] {int(100 * percentage)}%  {extra_text}")
     sys.stdout.flush()
+
+
+cloudinary.config( 
+  cloud_name = "inversionesfinanzas", 
+  api_key = Motdepasse().get_keys('CLOUDINARY_API_KEY'), 
+  api_secret = Motdepasse().get_keys('CLOUDINARY_SECRET'),
+  secure = True
+)
+
 
 # SECURITY WARNING: Modify this secret key if using in production!
 SECRET_KEY = "6few3nci_q_o@l1dlbk81%wcxe!*6r29yu629&d97!hiqat9fa"

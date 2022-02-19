@@ -1,5 +1,4 @@
 import os
-import cloudinary
 import random
 import time
 import logging
@@ -7,7 +6,12 @@ import sys
 import shutil
 
 from editing import resize_image, create_short_from_image
-from settings import Motdepasse, print_progress_bar
+
+from settings import (
+    Motdepasse, 
+    print_progress_bar,
+    error_handling)
+
 from modelos.models import (
     Folder,
     LocalContent,
@@ -22,13 +26,6 @@ from modelos.models import (
 # hour = 17
 
 logger = logging.getLogger('longs')
-
-cloudinary.config( 
-  cloud_name = "inversionesfinanzas", 
-  api_key = Motdepasse().get_keys('CLOUDINARY_API_KEY'), 
-  api_secret = Motdepasse().get_keys('CLOUDINARY_SECRET'),
-  secure = True
-)
 
 
 class Multipostage:
@@ -97,14 +94,15 @@ class Multipostage:
         if yb_response['result'] == 'error':
             if yb_response['where'] == 'initialize upload youtube video' or yb_response['where'] == 'upload caption youtube video':
                 error_message = yb_response['message']
-                logger.info(f'Error uploading videos --> {error_message}')
+                logger.error(f'Error uploading videos --> {error_message}')
                 sys.exit()
             else:                
                 retry += 1
                 if retry == 5:
-                    logger.info(f'Error with the following video --> {video.id}')
+                    logger.error(f'Error with the following video --> {video.id}')
                     sys.exit()
-                logger.info(f'Error with the following video --> {video.id}, starting again with an other')
+                logger.error(f'Error with the following video --> {video.id}, starting again with an other')
+                time.sleep(60)
                 return self.share_long(retry)
         
         custom_title = video.old_title
@@ -118,7 +116,7 @@ class Multipostage:
         return repost_response
         
 
-    def repost_youtube_video(self, yb_title, yb_video_id):
+    def repost_youtube_video(self, yb_title, yb_video_id, retry=0, skip_twitter = False):
         url_to_share = f'https://www.youtube.com/watch?v={yb_video_id}'
         default_title = DefaultTilte.objects.random_title
 
@@ -129,33 +127,67 @@ class Multipostage:
         {url_to_share}
         """       
 
-        tweeter_post_id = self.twitter.tweet_text(tw_status)
+        if skip_twitter is False:
+            tweeter_post_response = self.twitter.tweet(
+                caption = tw_status,
+                has_default_title = True,
+                default_title = default_title,
+                post_type = 4,
+            )
+            if tweeter_post_response['result'] == 'error':
+                retry += 1
+                if retry == 5:
+                    error_message = tweeter_post_response['message']
+                    logger.error(f'Persistent error reposting on twitter {error_message}')
+                else:
+                    logger.error(f'Error reposting on twitter, starting again with an other')
+                    time.sleep(60)
+                    return self.repost_youtube_video(yb_title, yb_video_id, retry=retry)
+            retry = 0
 
-        fb_post_id =  self.new_facebook.post_text(text=fb_title, link = url_to_share)
+        fb_post_response = self.new_facebook.post_on_facebook(
+            post_type = 4,
+            default_title = default_title,
+            custom_title = fb_title,
+            caption=fb_title, 
+            link = url_to_share)
 
-        fb_post_id_repost = fb_post_id['post_id'].split('_')[1]
-
-        self.old_facebook.share_facebook_post(post_id = fb_post_id_repost, yb_title = yb_title)
-
+        if fb_post_response['result'] == 'error':
+            retry += 1
+            if retry == 5 or fb_post_response['message'] == 'Need new user token':
+                error_message = fb_post_response['message']
+                logger.error(f'Persistent error reposting on facebook {error_message}')
+            else:
+                logger.error(f'Error reposting on facebook, starting again with an other')
+                time.sleep(60)
+                return self.repost_youtube_video(yb_title, yb_video_id, retry=retry, skip_twitter = True)
         
-    
+        if fb_post_response['result'] == 'success':
+            fb_post_id_repost = fb_post_response['extra'].split('_')[1]
+            self.old_facebook.share_facebook_post(post_id = fb_post_id_repost, yb_title = yb_title)
 
-    def create_post_image(self):
-        name,top,bottom = 'frases', 0, 122
-        if random.randint(1,2) == 1:
-            name,top,bottom = 'logos', 58, 5
+    @error_handling('prepare resized image')
+    def prepare_resized_image(self, cont_type):
+        """
+        the images are saved in the main folder for frases, in the case of logos
+        the images are in a subfolder but they share the same name as the subfolder
+        so adding .jpg at the end it finds the image
+        """
         
-        original_folder = Folder.objects.get(name = name)
-        images_av = os.listdir(original_folder.full_path)[0]
+        if cont_type == 'frases':
+            top, bottom = 0, 122
+        if cont_type == 'logos':
+            top, bottom = 58, 5
+        
+        original_folder = Folder.objects.get(name = cont_type)
+        image_available = random.choice(os.listdir(original_folder.full_path))
 
-        image_path = f'{original_folder.full_path}{images_av}'
+        image_path = f'{original_folder.full_path}{image_available}'
         if image_path.endswith('.jpg') is False:
-            image_path = f'{image_path}/{images_av}.jpg'
-
-        final_folder = Folder.objects.resized_folder
+            image_path = f'{image_path}/{image_available}.jpg'
 
         local_content = LocalContent.objects.create(
-            main_folder = final_folder,
+            main_folder = Folder.objects.resized_folder,
             is_video = False,
             is_img = True,
             reusable = True
@@ -163,17 +195,34 @@ class Multipostage:
 
         final_path = local_content.create_dir()
 
-        resized_image = resize_image(image_path, final_path, top, bottom, delete_old = True)
+        resize_image(image_path, final_path, top, bottom, delete_old = True)
+
+        return local_content
+
+
+    def share_image(self, cont_type, resize = True, retry = 0):
+
+        if resize is True:
+            resized_image_response = self.prepare_resized_image(cont_type)
         
-        self.insta.default_post_on_instagram(local_content, resized_image)
-        self.twitter.default_image_tweet(local_content, resized_image)
+        if resized_image_response['result'] == 'error':
+            if retry == 5:
+                logger.error('Max reties to create an image')
+                sys.exit()
+            retry += 1
+            return self.share_image(cont_type, retry=retry)
+        
+        local_content = resized_image_response['extra']
+        self.insta.post_on_instagram(local_content)
+        self.twitter.tweet(local_content)
 
         
         local_content.published = True
         local_content.save()
     
 
-    def create_post_short(self):
+    @error_handling('prepare short')
+    def prepare_short(self):
         carpeta = Folder.objects.shorts_folder
 
         local_content = LocalContent.objects.available_image_for_short        
@@ -192,13 +241,22 @@ class Multipostage:
         fps_and_duration = random.randint(25, 33)
         
         create_short_from_image(new_dir, image, fps_and_duration)
-        
-        yb_post_result = self.youtube.upload_post_youtube_short(new_content)
 
-        if yb_post_result != 'error-uploading-video':
-            self.repost_youtube_video(' ', yb_post_result, frase_default='')
+        return new_content
+
+
+    def share_short(self, retry=0):
+
+        prepare_short_response = self.prepare_short()
         
-        insta_post_result = self.insta.default_post_on_instagram(local_content, post_type=1)
-        
-        return insta_post_result
+        if prepare_short_response['result'] == 'error':
+            if retry == 5:
+                logger.error('Max reties to create a short')
+                sys.exit()
+            retry += 1
+            return self.share_short(retry=retry)
+
+        local_content = prepare_short_response['extra']
+        self.youtube.upload_default_short(local_content)
+        self.twitter.tweet(local_content, post_type=1)
         

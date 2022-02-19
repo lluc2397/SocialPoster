@@ -128,8 +128,7 @@ class Facebook():
         return self._send_content('image', data)
         
 
-    def _send_content(self, content_type:str, content, files = None):
-        logger.info("Posting on facebook...")
+    def _send_content(self, content_type:str, content, files = None):        
         if content_type == 'video':
             re = requests.post(f'{self.post_facebook_video_url}/videos',files=files, data = content)
         elif content_type == 'text':
@@ -140,16 +139,23 @@ class Facebook():
         response = {}
         json_re = re.json()
         if re.status_code == 200:
-            response['status'] = re.status_code
-            response['post_id'] = str(json_re['id'])            
-            return response
-        
+            logger.info("Posted on facebook")
+            response['result'] = 'success'
+            response['extra'] = str(json_re['id'])
+
         elif json_re['error']['code'] == 190:
             logger.error(f'{json_re}, Need new user token')            
-            sys.exit()
+            response['result'] = 'error'
+            response['where'] = 'send content facebook'
+            response['message'] = 'Need new user token'
+
         else:
             logger.error(f'{json_re}')
-            sys.exit()
+            response['result'] = 'error'
+            response['where'] = 'send content facebook'
+            response['message'] = f'{json_re}'
+        
+        return response
     
 
     def post_on_facebook(
@@ -158,7 +164,7 @@ class Facebook():
         post_type = 1,
         is_original = False,
         num_emojis = 1,
-        hashtags = Hashtag.objects.random_yb_hashtags,
+        hashtags = Hashtag.objects.random_fb_hashtags,
         has_default_title = True,
         default_title = DefaultTilte.objects.random_title,
         custom_title = '',
@@ -168,7 +174,7 @@ class Facebook():
 
         emojis = Emoji.objects.random_emojis(num_emojis)
 
-        if custom_title == '' and has_default_title is False:
+        if custom_title == '' and has_default_title is True:
             custom_title = f'{emojis[0].emoji}{default_title}'
 
         if caption == '':
@@ -185,26 +191,34 @@ class Facebook():
 
         elif post_type == 3 or post_type == 4:
             content_type = 'text'
-            post_response = self.post_text(text= custom_title, link=link)
+            post_response = self.post_text(text= caption, link=link)
 
-        facebook_post = FacebookPostRecord.general_manager.save_record(
-            local_content = local_content ,
-            post_type = post_type ,
-            is_original = is_original ,
-            social_id = post_response['post_id'] ,
-            emojis = emojis ,
-            hashtags = hashtags ,
-            has_default_title = has_default_title ,
-            default_title = default_title ,
-            custom_title = custom_title ,
-            caption = caption
-        )
+        if post_response['result'] == 'success':
+            facebook_post = FacebookPostRecord.general_manager.save_record(
+                local_content = local_content ,
+                post_type = post_type ,
+                is_original = is_original ,
+                social_id = post_response['extra'] ,
+                emojis = emojis ,
+                hashtags = hashtags ,
+                has_default_title = has_default_title ,
+                default_title = default_title ,
+                custom_title = custom_title ,
+                caption = caption
+            )
+
+        return post_response
     
 
     def share_facebook_post(self, post_id, yb_title):
         default_title = DefaultTilte.objects.random_title
         url_to_share = f'https://www.facebook.com/{self.facebook_page_name}/posts/{post_id}&show_text=true'
-        return self.post_text(text=f'{default_title.title} {yb_title}', link = url_to_share)
+        return self.post_on_facebook(
+            post_type=4,
+            default_title = default_title,
+            has_default_title = True,
+            text=f'{default_title.title} {yb_title}',
+            link = url_to_share)
     
 
 

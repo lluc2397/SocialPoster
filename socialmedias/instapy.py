@@ -1,10 +1,15 @@
 import requests
 import time
 import logging
+import sys
 
 import cloudinary.uploader
 
-# from modelos.models import
+from modelos.models import (
+    Hashtag,
+    DefaultTilte,
+    Emoji,
+    InstagramPostRecord)
 
 logger = logging.getLogger('longs')
 
@@ -69,7 +74,7 @@ class Instagram():
 
     def check_post_status(self, post_id):
         extra = 'fields=status_code,status'
-        status_url = f'{FACEBOOK_MAIN_URL}{post_id}?{extra}&{self.ig_access_token_url}'
+        status_url = f'{self.main_instagram_url}{post_id}?{extra}&{self.ig_access_token_url}'
 
         s = requests.get(status_url)
         status = s.json()
@@ -88,7 +93,7 @@ class Instagram():
 
         response = {
             'content_url':content_url,
-            'cloudinary_asset_id': cloudinary_asset_id
+            'asset_id': cloudinary_asset_id
         }
 
         return response
@@ -98,20 +103,20 @@ class Instagram():
     def _send_content_to_instagram(self, caption, content_url, resource_type, send_from):        
         
         if send_from == 'cloudinary':
-            cloudinary_response = self._upload_to_cloudinary(content_url, resource_type)
+            upload_response = self._upload_to_cloudinary(content_url, resource_type)
 
         if resource_type == "video":
 
             data = {
                 'media_type':"VIDEO",
-                'video_url': cloudinary_response['content_url'],
+                'video_url': upload_response['content_url'],
                 'caption': caption,
                 'access_token': self.page_access_token
             }
 
         else:
             data = {
-                'image_url': cloudinary_response['content_url'],
+                'image_url': upload_response['content_url'],
                 'caption': caption,
                 'access_token': self.page_access_token
             }
@@ -119,23 +124,27 @@ class Instagram():
         try:
             pre_post = requests.post(f'{self.instagram_url}media', data = data)
             
-            print('_send_content_to_instagram pre post',pre_post.content)
+            logger.info(f'_send_content_to_instagram pre post {pre_post.content}')
+
+            pre_post_data = {
+                'instagram_pre_published_id': pre_post.json()['id'],
+                'uploaded_asset_id': upload_response['asset_id'],
+                'resource_type': resource_type,
+                'content_url': upload_response['content_url'],
+                'caption':caption
+            }
 
             response = {
                 'result':'success',
-                'content_pre_published_id': pre_post.json()['id'],
-                'cloudinary_asset_id': cloudinary_response['cloudinary_asset_id'],
-                'cloudinary_resource_type': resource_type,
-                'cloudinary_url': cloudinary_response['content_url'],
-                'caption':caption
+                'extra': pre_post_data
             }
         
         except Exception as e:
-            logger.exception('Error while publishing sending content to instagram')
+            logger.exception(f'Error while publishing sending content to instagram {e}')
             response = {
                 'result':'error',
                 'where':'instagram sending post',
-                'message':f'{e}'
+                'message': e
             }
 
         return response
@@ -144,39 +153,41 @@ class Instagram():
 
     def _publish_uploaded_content(self, content_pre_published_data):
         try:
-            post_id = content_pre_published_data['content_pre_published_id']
+            post_id = content_pre_published_data['instagram_pre_published_id']
 
             status = self.check_post_status(post_id)
 
             if status['status_code'] == 'FINISHED':
                 requests.post(f'{self.post_url}{post_id}')
 
-                time.sleep(5)
+                time.sleep(10)
                 return self._publish_uploaded_content(content_pre_published_data)
 
             elif status['status_code'] == 'PUBLISHED':
-
                 response = {
                     'result':'success',
                     'extra':post_id
                 }
             
             elif status['status_code'] == 'IN_PROGRESS':
-                time.sleep(5)
+                time.sleep(10)
                 return self._publish_uploaded_content(content_pre_published_data)
             
             elif status['status_code'] == 'EXPIRED':
-
+                logger.error(f'Error while publishing uploaded content to instagram{status}')
                 response = {
                     'result':'error',
                     'where':'status expired',
+                    'message': status,
                     'extra': content_pre_published_data
                 }
 
             elif status['status_code'] == 'ERROR':
+                logger.error(f'Error while publishing uploaded content to instagram{status}')
                 response = {
                     'result':'error',
                     'where':'status error',
+                    'message': status,
                     'extra': content_pre_published_data
                 }
 
@@ -192,59 +203,71 @@ class Instagram():
         
 
 
-    def post_on_instagram(self, caption= "", hashtags=[], content_url='', resource_type = "image", send_from = 'cloudinary', destroy_asset = True):
-        """
-        send_from indicates the location, default is cloudinary
+    def post_on_instagram(
+        self,
+        local_content = None,
+        caption= "", 
+        hashtags=Hashtag.objects.random_ig_hashtags, 
+        content_url='',
+        has_default_title = True,
+        default_title = DefaultTilte.objects.random_title,
+        custom_title = '',
+        num_emojis = 1,
+        post_type=2,
+        send_from = 'cloudinary',
+        is_original = False,
+        destroy_asset = True
+        ):
+            """
+            send_from indicates the location, default is cloudinary
 
-        destroy_asset eliminates the previous uploaded    
-        """
+            destroy_asset eliminates the previous uploaded    
+            """
+            emojis = Emoji.objects.random_emojis(num_emojis)
 
-        if caption == '':
-            caption = self._create_ig_caption(caption, hashtags)
+            if custom_title == '' and has_default_title is True:
+                custom_title = f'{emojis[0].emoji}{default_title}'
 
-        content_pre_published_data = self._send_content_to_instagram(caption, content_url, resource_type=resource_type, send_from=send_from)
+            if local_content is not None:
+                resource_type = "image"
+                content_url = local_content.local_resized_image_path
+                if post_type == 1:
+                    content_url = local_content.local_vertical_short_path
+                    resource_type = "video"
 
-        instagram_post_result = self._publish_uploaded_content(content_pre_published_data)
+            if caption == '':
+                caption = self.create_ig_caption(custom_title, ' '.join([hashtag.name for hashtag in hashtags]))
 
-        if destroy_asset is True:
-                if send_from == 'cloudinary':
-                    cloudinary.uploader.destroy(content_pre_published_data['cloudinary_asset_id'], resource_type = content_pre_published_data['cloudinary_resource_type'])
+            content_pre_published_data = self._send_content_to_instagram(caption, content_url, resource_type=resource_type, send_from=send_from)
             
-        return instagram_post_result
-    
-    
-
-    def default_post_on_instagram(self, local_content, post_type=2):
-        list_hashtags = HASHTAGS.objects.random_ig_hashtags
-
-        hashtags = ' '.join([hashtag.name for hashtag in list_hashtags])
-        
-        title = DEFAULT_TITLES.objects.random_title            
-
-        caption = self._create_ig_caption(title.title, hashtags)
-
-        resource_type = "image"
-        content_url = local_content.local_resized_image_path
-        if post_type == 1:
-            content_url = local_content.local_vertical_short_path
-            resource_type = "video"
-
-        post_result = self.post_on_instagram(caption, content_url = content_url, resource_type=resource_type)
-
-        if post_result['result'] == 'success':
-            post_id = post_result['extra']
-
-            ig_record = INSTAGRAM_POST.objects.create(
-                content_related = local_content,
-                post_type = post_type,
-                title = title,
-                social_id = post_id,
+            if content_pre_published_data['result'] == 'error':
+                sys.exit()
+            
+            instagram_post_result = self._publish_uploaded_content(content_pre_published_data['extra'])
+            
+            if instagram_post_result['result'] == 'error':
+                sys.exit()
+            
+            instagram_post = InstagramPostRecord.general_manager.save_record(
+                local_content = local_content ,
+                post_type = post_type ,
+                is_original = is_original ,
+                social_id = instagram_post_result['extra'] ,
+                emojis = emojis ,
+                hashtags = hashtags ,
+                has_default_title = has_default_title ,
+                default_title = default_title ,
+                custom_title = custom_title ,
+                caption = caption
             )
 
-            for hashtag in list_hashtags:
-                ig_record.hashtags.add(hashtag)
-
-        return post_result
+            if destroy_asset is True:
+                if send_from == 'cloudinary':
+                    cloudinary.uploader.destroy(
+                        instagram_post_result['uploaded_asset_id'],
+                        resource_type = instagram_post_result['resource_type'])
+                
+            return instagram_post_result
     
 
     def get_media_info(self, media_id):
@@ -262,7 +285,7 @@ class Instagram():
 
 
     
-    def _create_ig_caption(self, title, hashtags):        
+    def create_ig_caption(self, title, hashtags):        
         instagram_caption = f"""
         {title}
         .

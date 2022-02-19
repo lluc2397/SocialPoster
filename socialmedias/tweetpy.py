@@ -1,16 +1,20 @@
 import tweepy
 import random
-import json
-from settings import Motdepasse
+import logging
+from settings import Motdepasse, error_handling
 
-from modelos.models import Hashtag, DefaultTilte, TwitterPostRecord
+from modelos.models import (
+    Hashtag,
+    DefaultTilte,
+    TwitterPostRecord,
+    Emoji)
 
 site = 'https://inversionesyfinanzas.xyz'
 
-
+logger = logging.getLogger('longs')
 
 class Twitter:
-    def __init__(self) -> None:
+    def __init__(self):
         self.CONSUMER_KEY = Motdepasse().get_keys('consumer_key')
         self.CONSUMER_SECRET = Motdepasse().get_keys('consumer_secret')
         self.ACCESS_TOKEN = Motdepasse().get_keys('access_token')
@@ -24,83 +28,83 @@ class Twitter:
         twitter_api = tweepy.API(auth)
         return twitter_api
 
-    def tweet_text(self, status, lista_hashtags = Hashtag.objects.random_tw_hashtags):
+
+    @error_handling('tweet regular text')
+    def tweet_text(self, status):
         twitter_api = self.do_authenticate()
-        
-        hashtag1 = random.choice(lista_hashtags)
-        hashtag2 = random.choice(lista_hashtags)
-        hashtag3 = random.choice(lista_hashtags)
+        response = twitter_api.update_status(status)
 
-        tweet_content = f'{status} #{hashtag1.name} #{hashtag2.name} #{hashtag3.name}'
+        json_response = response._json
+        print(json_response)
 
-        response = twitter_api.update_status(tweet_content)
+        return json_response['id']
 
-        return response._json
 
-    
-    def tweet_with_media(self, media_url, status=''):
+    @error_handling('tweet media content')
+    def tweet_with_media(self, media_url, status):
 
         twitter_api = self.do_authenticate()
-        print('Tweet uploading...')
+
         post_id = twitter_api.media_upload(media_url)
-        print('Posting tweet...')
+
         response = twitter_api.update_status(status=status, media_ids=[post_id.media_id_string])
-        print('Tweeted')
-        return response._json
-    
-
-    # def default_tweet_status(self):
-    #     lista_hashtags = HASHTAGS.objects.random_tw_hashtags
         
-    #     title = DEFAULT_TITLES.objects.random_title
+        json_response = response._json
+        print(json_response)
 
-    #     hashtag1 = random.choice(lista_hashtags)
-    #     hashtag2 = random.choice(lista_hashtags)
-    #     hashtag3 = random.choice(lista_hashtags)
-
-    #     tw_status = f'{title} #{hashtag1} #{hashtag2} #{hashtag3}'
-
-    #     twitter_post = TWITTER_POST.objects.create(
-    #         is_local = False,
-    #         default_title = title,
-    #         caption = tw_status)
-        
-    #     twitter_post.hashtags.add(hashtag1)
-    #     twitter_post.hashtags.add(hashtag2)
-    #     twitter_post.hashtags.add(hashtag3)
-    #     twitter_post.save()
-
-    #     response = {
-    #         'tw_status':tw_status,
-    #         'twitter_post_model':twitter_post
-    #     }
-
-    #     return response
+        return json_response['id']
     
 
-    def default_image_tweet(self,local_content, media_url):
-        default_tweet = self.default_tweet_status()
+    def tweet(
+        self,
+        local_content = None,
+        caption= "", 
+        hashtags=Hashtag.objects.random_tw_hashtags,
+        has_default_title = True,
+        default_title = DefaultTilte.objects.random_title,
+        num_emojis = 1,
+        post_type=2,
+        is_original = False,
+        content_url='',
+        ):
+            emojis = Emoji.objects.random_emojis(num_emojis)
 
-        twitter_post = default_tweet['twitter_post_model']
-        status = default_tweet['tw_status']
+            hashtag1 = random.choice(hashtags)
+            hashtag2 = random.choice(hashtags)
+            hashtag3 = random.choice(hashtags)
 
-        post_id = self.tweet_with_media(media_url, status=status)
+            hashtags_used = [hashtag1, hashtag2, hashtag3]
 
-        twitter_post.content_related = local_content
-        twitter_post.post_type = 6
-        twitter_post.social_id = post_id['id']
-        twitter_post.save()
-    
+            if caption == '' and has_default_title is True:
+                caption = f'{emojis[0].emoji}{default_title}'
+                caption = f'{caption} #{hashtag1.name} #{hashtag2.name} #{hashtag3.name}'
 
-    def default_short_tweet(self,local_content, media_url):
-        default_tweet = self.default_tweet_status()
+            if post_type == 3 or post_type == 4:
+                content_type = 'text'
+                post_response = self.tweet_text(caption)
+            
+            else:
+                if post_type == 1 or post_type == 5:
+                    content_type = 'video'
+                    media_url = local_content.local_vertical_short_path
+                    
+                elif post_type == 2 or post_type == 6:
+                    content_type = 'image'
+                    media_url =  local_content.local_resized_image_path
 
-        twitter_post = default_tweet['twitter_post_model']
-        status = default_tweet['tw_status']
+                post_response = self.tweet_with_media(media_url, caption)
+            
+            if post_response['result'] == 'success':
+                twitter_post = TwitterPostRecord.general_manager.save_record(
+                    local_content = local_content,
+                    post_type = post_type ,
+                    is_original = is_original ,
+                    social_id = post_response['extra'],
+                    emojis = emojis ,
+                    hashtags = hashtags_used ,
+                    has_default_title = has_default_title,
+                    default_title = default_title,
+                    caption = caption
+                )
 
-        post_id = self.tweet_with_media(media_url, status=status)
-
-        twitter_post.content_related = local_content
-        twitter_post.post_type = 5
-        twitter_post.social_id = post_id['id']
-        twitter_post.save()
+            return post_response
