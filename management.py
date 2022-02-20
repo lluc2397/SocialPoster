@@ -256,7 +256,7 @@ class Multipostage:
         
         if prepare_short_response['result'] == 'error':
             if retry == 5:
-                logger.error('Max retries to create a short exiting program')
+                logger.error('Max retries to create a short, exiting program')
                 sys.exit()
             retry += 1
             return self.share_short(retry=retry)

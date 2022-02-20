@@ -218,7 +218,7 @@ class Facebook():
             post_type=4,
             default_title = default_title,
             has_default_title = True,
-            text=f'{default_title.title} {yb_title}',
+            caption=f'{default_title.title} {yb_title}',
             link = url_to_share)
     
 

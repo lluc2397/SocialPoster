@@ -485,7 +485,7 @@ class Youtube:
       local_content.published = True
       local_content.save()
 
-      YoutubePostRecord.objects.save_record(
+      YoutubePostRecord.general_manager.save_record(
         local_content = local_content, 
         post_type =2, 
         is_original = is_original, 

@@ -76,9 +76,12 @@ class Twitter:
             hashtags_used = [hashtag1, hashtag2, hashtag3]
 
             if caption == '' and has_default_title is True:
-                caption = f'{emojis[0].emoji}{default_title}'
-                caption = f'{caption} #{hashtag1.name} #{hashtag2.name} #{hashtag3.name}'
-
+                default_caption = f'{emojis[0].emoji}{default_title}'
+                caption = f'{default_caption} #{hashtag1.name} #{hashtag2.name} #{hashtag3.name}'
+                if len(caption) > 280:
+                    hashtags_used = [hashtag1]
+                    caption = f'{default_caption} #{hashtag1.name}'
+                    
             logger.info(f'Posting of twitter {local_content}')
             if post_type == 3 or post_type == 4:
                 content_type = 'text'
