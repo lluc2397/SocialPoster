@@ -180,6 +180,7 @@ class Facebook():
         if caption == '':
             caption = self.create_fb_description([hashtag.name for hashtag in hashtags])
         
+        logger.info(f'Posting on facebook {local_content} {caption}')
         if post_type == 1 or post_type == 5 or post_type == 7:
             content_type = 'video'
             video_url = ''

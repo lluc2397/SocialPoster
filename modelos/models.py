@@ -69,6 +69,7 @@ class LocalContent(models.Model):
     published = models.BooleanField(default=False)
     is_video = models.BooleanField(default=True)
     is_img = models.BooleanField(default=False)
+    is_short = models.BooleanField(default=False)
     reused = models.BooleanField(default=False)
     reusable = models.BooleanField(default=False)
     original_local = models.UUIDField(null = True)

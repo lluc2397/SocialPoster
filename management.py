@@ -49,8 +49,12 @@ class Multipostage:
         self.twitter = Twitter()
 
     def tests(self):
+        for ids in os.listdir(Folder.objects.shorts_folder.full_path):
+            lc = LocalContent.objects.get(iden = ids)
+            print(lc.delete())
+            shutil.rmtree(Folder.objects.shorts_folder.full_path + ids)
         
-        print()
+        
 
 
     def delete_non_saved_local(safe):
@@ -101,19 +105,18 @@ class Multipostage:
                 logger.error(f'Error with the following video --> {video.id}, starting again with an other {error_message}')
                 time.sleep(60)
                 return self.share_long(retry)
-        
-        custom_title = video.old_title
-        if video.new_title:
-            custom_title = video.new_title
-            
-        logger.info(f'Starting the repost process of {custom_title} in 1 min')
-        time.sleep(60)
-        repost_response = self.repost_youtube_video(custom_title, yb_response['extra'])
 
-        return repost_response
+        else:
+            custom_title = video.new_title if video.new_title else video.old_title
+                
+            logger.info(f'Starting the repost process of {custom_title} in 1 min')
+            time.sleep(60)
+
+            self.repost_youtube_video(yb_response['extra'], yb_title = custom_title)
+
         
 
-    def repost_youtube_video(self, yb_title, yb_video_id, retry=0, skip_twitter = False):
+    def repost_youtube_video(self, yb_video_id, yb_title='', retry=0, skip_twitter = False):
         url_to_share = f'https://www.youtube.com/watch?v={yb_video_id}'
         default_title = DefaultTilte.objects.random_title
 
@@ -198,17 +201,17 @@ class Multipostage:
         return local_content
 
 
-    def share_image(self, cont_type, resize = True, retry = 0):
+    def share_image(self, folder_name, resize = True, retry = 0):
 
         if resize is True:
-            resized_image_response = self.prepare_resized_image(cont_type)
+            resized_image_response = self.prepare_resized_image(folder_name)
         
         if resized_image_response['result'] == 'error':
             if retry == 5:
                 logger.error('Max reties to create an image exiting program')
                 sys.exit()
             retry += 1
-            return self.share_image(cont_type, retry=retry)
+            return self.share_image(folder_name, retry=retry)
         
         local_content = resized_image_response['extra']
         self.insta.post_on_instagram(local_content)
@@ -229,6 +232,7 @@ class Multipostage:
             main_folder = carpeta,
             is_video = True,
             reused = True,
+            is_short = True,
             original_local = local_content.iden,
         )
         
@@ -258,8 +262,12 @@ class Multipostage:
             return self.share_short(retry=retry)
 
         local_content = prepare_short_response['extra']
-        self.youtube.upload_default_short(local_content)
-        self.twitter.tweet(local_content, post_type=1)
+        
+        youtube_response = self.youtube.upload_default_short(local_content=local_content)
+        self.twitter.tweet(local_content=local_content, post_type=1)
+
+        if youtube_response['result'] == 'success':
+            self.repost_youtube_video(youtube_response['extra'], skip_twitter = True)
 
         local_content.published = True
         local_content.save()

@@ -53,8 +53,8 @@ def main():
         Multipostage().share_long()
 
     if args_dict['image'] is not False:
-        cont_type = args_dict['image']
-        Multipostage().share_image(cont_type)
+        folder_name = args_dict['image']
+        Multipostage().share_image(folder_name)
     
     if args_dict['short'] is True:
         Multipostage().share_short()

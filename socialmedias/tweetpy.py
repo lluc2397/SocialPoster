@@ -79,6 +79,7 @@ class Twitter:
                 caption = f'{emojis[0].emoji}{default_title}'
                 caption = f'{caption} #{hashtag1.name} #{hashtag2.name} #{hashtag3.name}'
 
+            logger.info(f'Posting of twitter {local_content}')
             if post_type == 3 or post_type == 4:
                 content_type = 'text'
                 post_response = self.tweet_text(caption)
@@ -92,6 +93,7 @@ class Twitter:
                     content_type = 'image'
                     media_url =  local_content.local_resized_image_path
 
+                logger.info(f'Posting of twitter {media_url}')
                 post_response = self.tweet_with_media(media_url, caption)
             
             if post_response['result'] == 'success':

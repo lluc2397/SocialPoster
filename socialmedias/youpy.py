@@ -233,13 +233,13 @@ class Youtube:
       new_title = translator.translate(old_title, lang_src='en', lang_tgt='es')
 
     new_video = YoutubeVideoDowloaded.objects.create(
-    url = video_url,
-    original_channel = channel_to_parse,
-    old_title = old_title,
-    new_title = new_title,
-    downloaded = False,
-    has_caption = has_caption
-    )
+      url = video_url,
+      original_channel = channel_to_parse,
+      old_title = old_title,
+      new_title = new_title,
+      downloaded = False,
+      has_caption = has_caption
+      )
     return new_video
 
 
@@ -393,14 +393,7 @@ class Youtube:
     
     
   #   yb_title = f'{emojis[0].emoji}{yb_title}{emojis[1].emoji} #shorts'
-    
-    
-    
-    
-    
-    
-    
-  
+      
   
   def upload_default_english_long_video(self, video, is_original=False):
 

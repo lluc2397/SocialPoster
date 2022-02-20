@@ -76,8 +76,8 @@ class ContentManager(models.Manager):
     
     @property
     def available_image_for_short(self):
-        content = self.filter(published = True, has_consistent_error= False, is_img = True, reusable = True, reused = False)
-        return content[0]
+        content = self.filter(has_consistent_error= False, is_img = True, reusable = True, reused = False)
+        return random.choice([* content])
 
 
 class GeneralManager(models.Manager):
@@ -160,5 +160,5 @@ class FoldersManager(models.Manager):
 class YoutubeVideoDowloadedManager(models.Manager):
 
     @property
-    def video_downloaded(self):
-        return self.filter(downloaded = True, captions_downloaded=True)[0]
+    def videos_downloaded(self):
+        return self.filter(downloaded = True, captions_downloaded=True)
