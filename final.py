@@ -14,16 +14,6 @@ django.setup()
 
 from management import Multipostage
 
-"""
-Crear post text --> Postear text en twitter y compartir el tweet en fb viejo
-                --> Poster text en fb nuevo
-Crear decorator para hacer un post con default options y guardarlo
-Ver como publicar en Tiktok de forma automática.
-Ver en google business
-Ver en Linkedin
-Descargar imágenes de insta.
-"""
-
 logo = '/home/lucas/InvFin/images/LOGO/logo FB Inversiones y finanzas.png'
 def desktop_notification(title, message='', duration=1, img_path=logo):
     s.Popen(["notify-send",f"{title}", f"{message}", "-t",f"{(duration * 1000)}", "-i", f"{img_path}"])

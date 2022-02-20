@@ -13,3 +13,10 @@ TODOS
 (Some can be found on the final.py)
 -Create class to post on Linkedin, Tiktok and GMB.
 -Generalize more the current class so it would be possible to post some content created "on the fly"
+-Create post text --> Post some text on twitter and Facebook
+                --> Repost the tweet on old facebook
+-Create general class to create posts with default values
+-Be able to retweet own tweets
+-Lookup for trending hashtags
+-Download images from insta
+-Do some exploratory data analysis to find the best kind of post for each social media
