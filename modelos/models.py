@@ -65,7 +65,7 @@ class Folder(models.Model):
 
 class LocalContent(models.Model):
     iden = models.UUIDField(null = True, unique=True)
-    main_folder = models.ForeignKey(Folder, null = True, blank=True, on_delete=models.SET_NULL)
+    main_folder = models.ForeignKey(Folder, null = True, blank=True, on_delete=models.SET_NULL, related_name='content')
     published = models.BooleanField(default=False)
     is_video = models.BooleanField(default=True)
     is_img = models.BooleanField(default=False)

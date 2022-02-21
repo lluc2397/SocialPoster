@@ -60,21 +60,6 @@ class ContentManager(models.Manager):
             return new_iden
     
     @property
-    def available_video(self):
-        content = self.filter(
-            published = False,
-            has_consistent_error= False,
-            is_video = True,
-            reused = False,
-            reusable = False)
-        
-        return random.choice([contenido for contenido in content])
-    
-    @property
-    def available_downloaded_video(self):
-        return self.available_video.video_downloaded.all()[0]
-    
-    @property
     def available_image_for_short(self):
         content = self.filter(has_consistent_error= False, is_img = True, reusable = True, reused = False)
         return random.choice([* content])
@@ -111,8 +96,12 @@ class GeneralManager(models.Manager):
             if has_default_title is True:
                 modelo.default_title = default_title
 
-            modelo.emojis.add(*emojis)
-            modelo.hashtags.add(*hashtags)
+            if len(emojis) != 0:
+                modelo.emojis.add(*emojis)
+
+            if len(hashtags) != 0:
+                modelo.hashtags.add(*hashtags)
+                
             modelo.save()
 
             response = {
@@ -155,6 +144,11 @@ class FoldersManager(models.Manager):
     @property
     def audio_folder(self):
         return self.get(name = 'audio')
+    
+    @property
+    def long_video_local(self):
+        videos = self.longs_folder.content.filter(published = False, has_consistent_error= False, is_video = True)
+        return random.choice(videos)
 
 
 class YoutubeVideoDowloadedManager(models.Manager):

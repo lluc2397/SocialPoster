@@ -35,7 +35,6 @@ class Twitter:
         response = twitter_api.update_status(status)
 
         json_response = response._json
-        print(json_response)
 
         return json_response['id']
 
@@ -50,7 +49,6 @@ class Twitter:
         response = twitter_api.update_status(status=status, media_ids=[post_id.media_id_string])
         
         json_response = response._json
-        print(json_response)
 
         return json_response['id']
     
@@ -82,7 +80,6 @@ class Twitter:
                     hashtags_used = [hashtag1]
                     caption = f'{default_caption} #{hashtag1.name}'
                     
-            logger.info(f'Posting of twitter {local_content}')
             if post_type == 3 or post_type == 4:
                 content_type = 'text'
                 post_response = self.tweet_text(caption)
@@ -96,7 +93,6 @@ class Twitter:
                     content_type = 'image'
                     media_url =  local_content.local_resized_image_path
 
-                logger.info(f'Posting of twitter {media_url}')
                 post_response = self.tweet_with_media(media_url, caption)
             
             if post_response['result'] == 'success':

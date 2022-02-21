@@ -4,6 +4,7 @@ import time
 import logging
 import sys
 import shutil
+import re
 
 from editing import resize_image, create_short_from_image
 
@@ -48,47 +49,39 @@ class Multipostage:
         self.youtube = Youtube()
         self.twitter = Twitter()
 
+
     def tests(self):
-        for ids in os.listdir(Folder.objects.shorts_folder.full_path):
-            lc = LocalContent.objects.get(iden = ids)
-            print(lc.delete())
-            shutil.rmtree(Folder.objects.shorts_folder.full_path + ids)
-        
-        
-
-
-    def delete_non_saved_local(safe):
-        videos = os.listdir(Folder.objects.longs_folder.full_path)        
-        for video in videos:
-            existe = LocalContent.objects.filter(iden=video)
-            if existe.count() == 0:
-                shutil.rmtree(Folder.objects.longs_folder.full_path + video)
+       pass
 
 
     def download_captions(self):
-        videos = YoutubeVideoDowloaded.objects.filter(downloaded = True, captions_downloaded=False)
-        total = videos.count()
-        for i, video in enumerate(videos):
-            print_progress_bar(i,total,f'Total: {total}')
-            if video.content_related is None:
-                video.downloaded = False
-                video.save()
-                continue
-            captions_response = self.youtube.get_caption(video.content_related, video)
-
-            if captions_response['result'] == 'error':
-                video.content_related.has_consistent_error = True
-                video.content_related.error_msg = captions_response['message']
-                video.content_related.save()
-                continue
-        logger.info('Captions donwloaded done')
+        main_folder = Folder.objects.longs_folder.full_path
+        list_videos_dir = os.listdir(main_folder)
+        total = len(list_videos_dir)
+        for i, video_dir in enumerate(list_videos_dir):
+            # print_progress_bar(i,total,f'Total: {total}')
+            local_folder = LocalContent.objects.get(iden=video_dir)
+            
+            for file in os.listdir(local_folder.local_path):
+                if re.search('.srt$', file):
+                    continue
+                else:
+                    captions_response = self.youtube.get_caption(local_folder, local_folder.video_downloaded.all()[0])
+                    
+                    if captions_response['result'] == 'error':
+                        local_folder.has_consistent_error = True
+                        local_folder.error_msg = captions_response['message']
+                        local_folder.save()
+                        continue
+        print('done')
 
 
     def share_long(self, retry=0):
         retry = retry
-        video = LocalContent.objects.available_downloaded_video       
-        
-        yb_response = self.youtube.upload_default_english_long_video(video)
+        local_content = Folder.objects.long_video_local
+        video = local_content.video_downloaded.all()[0]
+                
+        yb_response = self.youtube.upload_default_english_long_video(local_content, video)
 
         if yb_response['result'] == 'error':
             error_message = yb_response['message']
@@ -106,17 +99,18 @@ class Multipostage:
                 time.sleep(60)
                 return self.share_long(retry)
 
-        else:
-            custom_title = video.new_title if video.new_title else video.old_title
-                
-            logger.info(f'Starting the repost process of {custom_title} in 1 min')
-            time.sleep(60)
+        logger.info(f'Starting the repost')
+        custom_title = video.new_title if video.new_title else video.old_title
+        video_id = yb_response['result']
+        logger.info(f'Starting the repost process of {custom_title} in 1 min, the youtube video id is {video_id}')
+        time.sleep(60)
 
-            self.repost_youtube_video(yb_response['extra'], yb_title = custom_title)
+        self.repost_youtube_video(video_id, yb_title = custom_title)
 
         
 
     def repost_youtube_video(self, yb_video_id, yb_title='', retry=0, skip_twitter = False):
+        retry = retry
         url_to_share = f'https://www.youtube.com/watch?v={yb_video_id}'
         default_title = DefaultTilte.objects.random_title
 
@@ -140,9 +134,9 @@ class Multipostage:
                     error_message = tweeter_post_response['message']
                     logger.error(f'Persistent error reposting on twitter {error_message}')
                 else:
-                    logger.error(f'Error reposting on twitter, starting again with an other')
+                    logger.error(f'Error reposting on twitter, starting again')
                     time.sleep(60)
-                    return self.repost_youtube_video(yb_title, yb_video_id, retry=retry)
+                    return self.repost_youtube_video(yb_video_id, yb_title, retry=retry)
             retry = 0
 
         fb_post_response = self.new_facebook.post_on_facebook(
@@ -160,7 +154,7 @@ class Multipostage:
             else:
                 logger.error(f'Error reposting on facebook, starting again with an other')
                 time.sleep(60)
-                return self.repost_youtube_video(yb_title, yb_video_id, retry=retry, skip_twitter = True)
+                return self.repost_youtube_video(yb_video_id, yb_title, retry=retry, skip_twitter = True)
         
         if fb_post_response['result'] == 'success':
             fb_post_id_repost = fb_post_response['extra'].split('_')[1]

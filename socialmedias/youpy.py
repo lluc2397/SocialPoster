@@ -1,7 +1,7 @@
 import httplib2
 import os
 import random
-import sys
+import shutil
 import time
 import logging
 
@@ -74,6 +74,7 @@ class Youtube:
     self.RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
     self.CLIENT_SECRETS_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../client_secrets.json"))
     self.YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
+    self.YOUTUBE_FULL_ACCESS_SCOPE = 'https://www.googleapis.com/auth/youtube'
     self.YOUTUBE_API_SERVICE_NAME = "youtube"
     self.YOUTUBE_API_VERSION = "v3"
     self.YOUTUBE_PARTNER_SCOPE = "https://www.googleapis.com/auth/youtubepartner"
@@ -94,13 +95,13 @@ class Youtube:
             """ % os.path.abspath(os.path.join(os.path.dirname(__file__), self.CLIENT_SECRETS_FILE))
 
 
-
-  def _get_authenticated_service(self):
+  def _youtube_authentication(self):
     flow = flow_from_clientsecrets(self.CLIENT_SECRETS_FILE,
-      scope=self.YOUTUBE_UPLOAD_SCOPE,
+      # scope=[self.YOUTUBE_UPLOAD_SCOPE, self.YOUTUBE_READ_WRITE_SSL_SCOPE],
+      scope = self.YOUTUBE_FULL_ACCESS_SCOPE,
       message=self.MISSING_CLIENT_SECRETS_MESSAGE)
-
-    storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../UploadVideos-oauth2.json")))
+    
+    storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../TotalPerms-oauth2.json")))
     credentials = storage.get()
 
     if credentials is None or credentials.invalid:
@@ -112,7 +113,7 @@ class Youtube:
 
   @error_handling('initialize upload youtube video')
   def initialize_upload(self, video_title:str, video_file:str,  video_tags:list, description=youtube_description, post_time='', privacyStatus="private"):
-    youtube = self._get_authenticated_service()
+    youtube = self._youtube_authentication()
 
     if privacyStatus == 'public':
       status = {
@@ -143,44 +144,6 @@ class Youtube:
 
     vid_id = self._resumable_upload(insert_request)
     return vid_id
-
-
-
-  def _get_authenticated_service_for_captions(self):
-    flow = flow_from_clientsecrets(self.CLIENT_SECRETS_FILE,
-      scope=self.YOUTUBE_READ_WRITE_SSL_SCOPE,
-      message=self.MISSING_CLIENT_SECRETS_MESSAGE)
-
-    storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../UploadCaptions-oauth2.json")))     
-    credentials = storage.get()
-
-    if credentials is None or credentials.invalid:
-      credentials = run_flow(flow, storage)
-
-    return build(self.YOUTUBE_API_SERVICE_NAME, self.YOUTUBE_API_VERSION,
-      http=credentials.authorize(httplib2.Http()))
-
-
-
-  @error_handling('upload caption youtube video')
-  def upload_caption(self, video_id:str, file:str, language = 'es', name = 'Español'):
-    youtube = self._get_authenticated_service_for_captions()
-
-    insert_result = youtube.captions().insert(
-      part="snippet",
-      body=dict(
-        snippet=dict(
-          videoId=video_id,
-          language=language,
-          name=name,
-          isDraft=False
-        )
-      ),
-      media_body=file
-    ).execute()
-
-    return video_id
-
 
 
   def _resumable_upload(self, insert_request):
@@ -214,7 +177,41 @@ class Youtube:
         sleep_seconds = random.random() * max_sleep
         print ("Sleeping %f seconds and then retrying..." % sleep_seconds)
         time.sleep(sleep_seconds)
-  
+
+
+  @error_handling('upload caption youtube video')
+  def upload_caption(self, video_id:str, captions_file:str, language = 'es', name = 'Español'):
+    youtube = self._youtube_authentication()
+    insert_result = youtube.captions().insert(
+      part="snippet",
+      body=dict(
+        snippet=dict(
+          videoId=video_id,
+          language=language,
+          name=name,
+          isDraft=False
+        )
+      ),
+      media_body=captions_file
+    ).execute()
+
+    return video_id
+
+  @error_handling('list captions youtube video')
+  def list_captions(self, video_id):
+    youtube = self._youtube_authentication()
+    results = youtube.captions().list(
+      part="snippet",
+      videoId=video_id
+    ).execute()
+
+    for item in results["items"]:
+      id = item["id"]
+      name = item["snippet"]["name"]
+      language = item["snippet"]["language"]
+      print (f"Caption track '{name}({id})' in '{language}' language.")
+
+    return results["items"]
 
 
   def new_video_to_parse(self,channel_to_parse, video_url, is_english = True):
@@ -283,7 +280,6 @@ class Youtube:
     if is_new is True:
       self.new_video_to_parse(video_url, is_english, True)           
     try:
-      print('Downloading video')
       yb_video.streams.get_highest_resolution().download(new_dir)
 
     except Exception as e:        
@@ -357,82 +353,83 @@ class Youtube:
         response['result'] = 'success'
       except Exception as e:
         response['result'] = 'error'
-        response['where'] = 'selenium dowload'
+        response['where'] = 'selenium download'
         response['message'] = e
 
         local_content.has_consistent_error = True
         local_content.error_msg = e
         local_content.save()
-  
-    return response
-        
-  
+        driver.quit()
+        driver.stop_client()
+    finally:
+      return response
 
-  # def upload_youtube_video(
-  #     self, 
-  #     video,
-  #     is_local = True,
-  #     post_type = 2,
-  #     is_original = False,
-  #     custom_title = '',
-  #     default_title = DefaultTilte.objects.random_title,
-  #     hashtags = Hashtag.objects.random_yb_hashtags,
-  #     caption = youtube_description,
-  #     use_default_title = True):
-    
-  #   emojis = Emoji.objects.random_emojis(4)
-  #   yb_hashtags = [hashtag.name for hashtag in hashtags]
-
-  #   if post_type == 1:
-  #     yb_title = video.old_title
-  #     if video.new_title:
-  #       yb_title = video.new_title    
-      
-  #     yb_title = f'{emojis[0].emoji}{yb_title}{emojis[1].emoji}(ESPAÑOL){emojis[2].emoji}'
-    
-    
-    
-  #   yb_title = f'{emojis[0].emoji}{yb_title}{emojis[1].emoji} #shorts'
-      
   
-  def upload_default_english_long_video(self, video, is_original=False):
+  def upload_default_english_long_video(self, local_content, video, is_original=False):
 
     emojis = Emoji.objects.random_emojis(3)
     yb_hashtags = [hashtag.name for hashtag in Hashtag.objects.random_yb_hashtags]
-    local_content = video.content_related
+    
     video_dir = local_content.local_path
 
-    custom_title = video.old_title
     if video.new_title:
-      custom_title = video.new_title    
+      custom_title = video.new_title
+    else:
+      try:
+        custom_title = translator.translate(video.old_title, lang_src='en', lang_tgt='es')
+      except Exception as e:
+        logger.error(f'Unable to translate the title {e}')
+        custom_title = video.old_title
+
     custom_title = f'{emojis[0].emoji} {custom_title}{emojis[1].emoji} en ESPAÑOL {emojis[2].emoji}(sub)'
 
+    captions_path = False
+    video_path = False
     for file in os.listdir(video_dir):
-      video_path = video_dir +file if file.endswith('.mp4') else None      
-      captions_path = video_dir +file if file.endswith('.srt') else None
+      if file.endswith('.mp4'):
+        video_path = video_dir +file
+      if file.endswith('.srt'):
+        captions_path = video_dir +file
 
-    if captions_path is None:
-      captions_response = self.get_caption(local_content, video)
-      if captions_response['result'] == 'error':
-        return captions_response   
+    if captions_path == False or video_path == False:
+      logger.error(f'Captions {captions_path} video_path{video_path}')
+      if captions_path == False:
+        captions_response = self.get_caption(local_content, video)
+        if captions_response['result'] == 'error':
+          try:
+            shutil.rmtree(video_dir)
+            local_content.delete()
+          except Exception as e:
+            logger.error(f'Unable to delete the folder {e}')
+            local_content.has_consistent_error = True
+            local_content.error_msg = 'Needs to be deleted, has no captions available'
+            local_content.save()
+          return captions_response   
 
-    if video_path is None:
-      logger.error(f'No video_path')
-      response = {
-        'result':'error',
-        'where':'upload long video',
-        'message': 'No video path'
-      }
-      return response
+      if video_path == False:
+        response = {
+          'result':'error',
+          'where':'upload long video',
+          'message': 'No video path'
+        }
+        try:
+          shutil.rmtree(video_dir)
+          local_content.delete()
+        except Exception as e:
+          logger.error(f'Unable to delete the folder {e}')
+          local_content.has_consistent_error = True
+          local_content.error_msg = 'Needs to be deleted, has no video path'
+          local_content.save()
+        return response
     
-    upload_response = self.initialize_upload(
+    upload_video_response = self.initialize_upload(
       video_title=custom_title, 
       video_file=video_path,  
       video_tags=yb_hashtags, 
       description=youtube_description, 
       privacyStatus='public')
 
-    if upload_response['result'] == 'success':
+    if upload_video_response['result'] == 'success':
       local_content.published = True
       local_content.save()
 
@@ -440,26 +437,32 @@ class Youtube:
         local_content = local_content, 
         post_type =1, 
         is_original = is_original, 
-        social_id = upload_response['extra'], 
+        social_id = upload_video_response['extra'], 
         emojis = emojis, 
         hashtags = Hashtag.objects.random_yb_hashtags, 
         has_default_title = False,
         custom_title=custom_title,
         caption =youtube_description)
 
-      upload_captions_response = self.upload_caption(upload_response['extra'],captions_path)
+      upload_captions_response = self.upload_caption(video_id = upload_video_response['extra'], captions_file =captions_path)
 
       if upload_captions_response['result'] == 'error':
         local_content.has_consistent_error = True
-        local_content.error_msg = upload_response['message']
+        local_content.error_msg = upload_captions_response['message']
         local_content.save()
+        
+        mer_ms = upload_captions_response['message']
+        logger.error(f'Error with captions {mer_ms}')
       return upload_captions_response
 
     else:
       local_content.has_consistent_error = True
-      local_content.error_msg = upload_response['message']
+      local_content.error_msg = upload_video_response['message']
       local_content.save()
-      return upload_response
+
+      mer_ms = upload_video_response['message']
+      logger.error(f'Error with upload {mer_ms}')
+      return upload_video_response
 
 
   def upload_default_short(self, local_content, is_original=False, custom_title=''):
@@ -474,32 +477,31 @@ class Youtube:
       custom_title = default_title.title
     custom_title = f'{emojis[0].emoji} {custom_title}{emojis[1].emoji} #shorts'
 
-    upload_response = self.initialize_upload(
+    upload_video_response = self.initialize_upload(
       video_title=custom_title, 
       video_file=local_content.local_vertical_short_path,  
       video_tags=yb_hashtags, 
       description=youtube_description, 
       privacyStatus='public')
 
-    if upload_response['result'] == 'success':
-      local_content.published = True
+    if upload_video_response['result'] == 'error':
+      local_content.has_consistent_error = True
+      local_content.error_msg = upload_video_response['message']
       local_content.save()
 
-      YoutubePostRecord.general_manager.save_record(
-        local_content = local_content, 
-        post_type =2, 
-        is_original = is_original, 
-        social_id = upload_response['extra'], 
-        emojis = emojis, 
-        hashtags = Hashtag.objects.random_yb_hashtags, 
-        has_default_title =use_default_title, 
-        default_title =default_title, 
-        custom_title = custom_title,
-        caption =youtube_description)
-      
-    else:
-      local_content.has_consistent_error = True
-      local_content.error_msg = upload_response['message']
-      local_content.save()
+    local_content.published = True
+    local_content.save()
+
+    YoutubePostRecord.general_manager.save_record(
+      local_content = local_content, 
+      post_type =2, 
+      is_original = is_original, 
+      social_id = upload_video_response['extra'], 
+      emojis = emojis, 
+      hashtags = Hashtag.objects.random_yb_hashtags, 
+      has_default_title =use_default_title, 
+      default_title =default_title, 
+      custom_title = custom_title,
+      caption =youtube_description)
     
-    return upload_response
+    return upload_video_response

@@ -14,9 +14,11 @@ django.setup()
 
 from management import Multipostage
 
+
 logo = '/home/lucas/InvFin/images/LOGO/logo FB Inversiones y finanzas.png'
 def desktop_notification(title, message='', duration=1, img_path=logo):
     s.Popen(["notify-send",f"{title}", f"{message}", "-t",f"{(duration * 1000)}", "-i", f"{img_path}"])
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -31,12 +33,12 @@ def main():
     help='Post image')
 
     parser.add_argument('-test', "--test", action='store_true',
-    help='Test')    
+    help='Test')  
 
     args_dict = vars(parser.parse_args())
 
-    if all(value is False for value in list(args_dict.values())):
-        # Multipostage().download_captions()
+    if all(value is False for value in list(args_dict.values())): 
+        Multipostage().tests()
         desktop_notification("Selecciona una opción", message="'-short, -long ,-img o -test'")           
 
     if args_dict['long'] is True:
@@ -49,9 +51,9 @@ def main():
     if args_dict['short'] is True:
         Multipostage().share_short()
     
-    if args_dict['test'] is True:
-        Multipostage().tests()
+    if args_dict['test'] is True:        
         desktop_notification('Nop')
+
 
 if __name__ == '__main__':
     main()

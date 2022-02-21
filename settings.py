@@ -49,9 +49,9 @@ def error_handling(where, extra=None):
     return decorator
 
 
-def print_progress_bar(actua_position, total_size, extra_text):
+def print_progress_bar(current_position, total_size, extra_text):
     bar_size = 10 
-    percentage = actua_position/total_size
+    percentage = current_position/total_size
     sys.stdout.write('\r')
     sys.stdout.write(f"[{'=' * int(bar_size * percentage):{bar_size}s}] {int(100 * percentage)}%  {extra_text}")
     sys.stdout.flush()
@@ -64,6 +64,7 @@ cloudinary.config(
   secure = True
 )
 
+USE_TZ = True
 
 # SECURITY WARNING: Modify this secret key if using in production!
 SECRET_KEY = "6few3nci_q_o@l1dlbk81%wcxe!*6r29yu629&d97!hiqat9fa"

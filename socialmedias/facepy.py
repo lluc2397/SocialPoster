@@ -139,7 +139,6 @@ class Facebook():
         response = {}
         json_re = re.json()
         if re.status_code == 200:
-            logger.info("Posted on facebook")
             response['result'] = 'success'
             response['extra'] = str(json_re['id'])
 
@@ -180,7 +179,6 @@ class Facebook():
         if caption == '':
             caption = self.create_fb_description([hashtag.name for hashtag in hashtags])
         
-        logger.info(f'Posting on facebook {local_content} {caption}')
         if post_type == 1 or post_type == 5 or post_type == 7:
             content_type = 'video'
             video_url = ''

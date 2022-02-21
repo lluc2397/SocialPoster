@@ -27,3 +27,4 @@ ERROR 2022-02-09 07:21:20,124 youpy 16700 139995583428416 Error when uploading--
 
 ERROR 2022-02-12 05:25:33,918 youpy 44630 140079192618816 Error when uploading captions--> invalid_grant: Token has been expired or revoked. 
 
+ERROR 2022-02-20 12:55:14,030 management 83473 140094117926720 Error uploading videos --> <HttpError 400 when requesting None returned "The request metadata specifies an invalid or empty video title.". Details: "[{'message': 'The request metadata specifies an invalid or empty video title.', 'domain': 'youtube.video', 'reason': 'invalidTitle', 'location': 'body.snippet.title', 'locationType': 'other'}]"> exiting program
