@@ -18,9 +18,11 @@ from modelos.models import (
     LocalContent,
     DefaultTilte,
     YoutubeVideoDowloaded,
-    FacebookPostRecord
+    FacebookPostRecord,
+    YoutubeChannel
     )
 
+from socialmedias.youpy import Youtube
 # year = 2022
 # month = 1
 # day = datetime.datetime.now().day
@@ -51,7 +53,13 @@ class Multipostage:
 
 
     def tests(self):
-       pass
+        # Youtube()._youtube_authentication()
+        channel = YoutubeChannel.objects.get(name = 'Value Investors Archive')
+        self.youtube.parse_youtube_channel(channel)
+        videos = YoutubeVideoDowloaded.objects.filter(original_channel = channel)
+        for video in videos:
+            self.youtube.download_youtube_video(video)
+        print('done')
 
 
     def download_captions(self):
@@ -101,7 +109,7 @@ class Multipostage:
 
         logger.info(f'Starting the repost')
         custom_title = video.new_title if video.new_title else video.old_title
-        video_id = yb_response['result']
+        video_id = yb_response['extra']
         logger.info(f'Starting the repost process of {custom_title} in 1 min, the youtube video id is {video_id}')
         time.sleep(60)
 

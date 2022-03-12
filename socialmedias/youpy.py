@@ -97,8 +97,8 @@ class Youtube:
 
   def _youtube_authentication(self):
     flow = flow_from_clientsecrets(self.CLIENT_SECRETS_FILE,
-      # scope=[self.YOUTUBE_UPLOAD_SCOPE, self.YOUTUBE_READ_WRITE_SSL_SCOPE],
-      scope = self.YOUTUBE_FULL_ACCESS_SCOPE,
+      scope=[self.YOUTUBE_UPLOAD_SCOPE, self.YOUTUBE_READ_WRITE_SSL_SCOPE, self.YOUTUBE_FULL_ACCESS_SCOPE],
+      # scope = self.YOUTUBE_FULL_ACCESS_SCOPE,
       message=self.MISSING_CLIENT_SECRETS_MESSAGE)
     
     storage = Storage(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../TotalPerms-oauth2.json")))
@@ -240,16 +240,20 @@ class Youtube:
     return new_video
 
 
-  def parse_youtube_channel(self, channel_to_parse_url:str, keep_scraping = True):
+  def parse_youtube_channel(self, channel_to_parse, keep_scraping = True):
     """
-    channel_to_parse has to be the channel's url
+    channel_to_parse can be the YoutubeChannel model or a url (str)
     """
-    channel = Channel(channel_to_parse_url)
-    channel_to_parse = YoutubeChannel.objects.create(
-      name = channel.channel_name,
-      url = channel_to_parse_url,
-      keep_scraping= keep_scraping,
-    )
+    if type(channel_to_parse) == str:
+      channel = Channel(channel_to_parse)
+      channel_to_parse = YoutubeChannel.objects.create(
+        name = channel.channel_name,
+        url = channel_to_parse,
+        keep_scraping= keep_scraping,
+      )
+    else:
+      channel = Channel(channel_to_parse.url)
+
     all_videos = channel.video_urls
 
     for video_url in (all_videos):
@@ -264,7 +268,7 @@ class Youtube:
 
 
   def download_youtube_video(self, video, get_captions = True, is_new = False, is_english = True):
-  
+    
     yb_long_folder = Folder.objects.longs_folder
     
     local_content = LocalContent.objects.create(main_folder = yb_long_folder)
@@ -281,6 +285,8 @@ class Youtube:
       self.new_video_to_parse(video_url, is_english, True)           
     try:
       yb_video.streams.get_highest_resolution().download(new_dir)
+      video.downloaded = True
+      video.save()
 
     except Exception as e:        
       local_content.delete()
@@ -290,9 +296,10 @@ class Youtube:
     else:
       if get_captions is True:
         try:
-          self.get_caption(local_content, video)         
+          self.get_caption(local_content, video)     
         except Exception as e:
           logger.error(f'Error en la descarga de captios del video {video} ---> {e}')
+      
       
       return local_content
 
@@ -489,19 +496,20 @@ class Youtube:
       local_content.error_msg = upload_video_response['message']
       local_content.save()
 
-    local_content.published = True
-    local_content.save()
+    else:
+      local_content.published = True
+      local_content.save()
 
-    YoutubePostRecord.general_manager.save_record(
-      local_content = local_content, 
-      post_type =2, 
-      is_original = is_original, 
-      social_id = upload_video_response['extra'], 
-      emojis = emojis, 
-      hashtags = Hashtag.objects.random_yb_hashtags, 
-      has_default_title =use_default_title, 
-      default_title =default_title, 
-      custom_title = custom_title,
-      caption =youtube_description)
+      YoutubePostRecord.general_manager.save_record(
+        local_content = local_content, 
+        post_type =2, 
+        is_original = is_original, 
+        social_id = upload_video_response['extra'], 
+        emojis = emojis, 
+        hashtags = Hashtag.objects.random_yb_hashtags, 
+        has_default_title =use_default_title, 
+        default_title =default_title, 
+        custom_title = custom_title,
+        caption =youtube_description)
     
     return upload_video_response

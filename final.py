@@ -54,7 +54,5 @@ def main():
     if args_dict['test'] is True:        
         desktop_notification('Nop')
 
-
 if __name__ == '__main__':
     main()
-   

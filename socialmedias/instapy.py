@@ -165,7 +165,7 @@ class Instagram():
             elif status['status_code'] == 'PUBLISHED':
                 response = {
                     'result':'success',
-                    'extra':post_id
+                    'extra':content_pre_published_data
                 }
             
             elif status['status_code'] == 'IN_PROGRESS':
@@ -251,7 +251,7 @@ class Instagram():
                 local_content = local_content ,
                 post_type = post_type ,
                 is_original = is_original ,
-                social_id = instagram_post_result['extra'] ,
+                social_id = instagram_post_result['extra']['instagram_pre_published_id'] ,
                 emojis = emojis ,
                 hashtags = hashtags ,
                 has_default_title = has_default_title ,
@@ -263,8 +263,8 @@ class Instagram():
             if destroy_asset is True:
                 if send_from == 'cloudinary':
                     cloudinary.uploader.destroy(
-                        instagram_post_result['uploaded_asset_id'],
-                        resource_type = instagram_post_result['resource_type'])
+                        instagram_post_result['extra']['uploaded_asset_id'],
+                        resource_type = instagram_post_result['extra']['resource_type'])
                 
             return instagram_post_result
     

@@ -90,7 +90,7 @@ class GeneralManager(models.Manager):
             caption = caption
             )
 
-            if local_content is not None:
+            if local_content != None:
                 modelo.local_content = local_content
                 
             if has_default_title is True:
