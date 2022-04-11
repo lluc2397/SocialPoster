@@ -3,8 +3,9 @@ import random
 import time
 import logging
 import sys
-import shutil
+import requests
 import re
+import xml.etree.ElementTree as ET
 
 from editing import resize_image, create_short_from_image
 
@@ -44,6 +45,8 @@ class Multipostage:
         old_faceboo_page_id = '107326904530301'
         new_facebook_page_id = '105836681984738'
         ig_account_id = '17841444650537865'
+        self.youtube_channel_url = 'https://www.youtube.com/c/InversionesyFinanzas/videos'
+        self.sitemap = 'https://inversionesyfinanzas.xyz/sitemap.xml'
 
         self.new_facebook = Facebook(page_access_token=new_long_live_page_token, page_id=new_facebook_page_id)
         self.old_facebook = Facebook(page_access_token=old_fb_page_access_token, page_id=old_faceboo_page_id)
@@ -51,38 +54,18 @@ class Multipostage:
         self.youtube = Youtube()
         self.twitter = Twitter()
 
+    def auth_yb(self):
+        self.youtube._youtube_authentication()
 
     def tests(self):
-        # Youtube()._youtube_authentication()
-        channel = YoutubeChannel.objects.get(name = 'Value Investors Archive')
-        self.youtube.parse_youtube_channel(channel)
-        videos = YoutubeVideoDowloaded.objects.filter(original_channel = channel)
-        for video in videos:
-            self.youtube.download_youtube_video(video)
-        print('done')
+        self.share_web_content()
 
-
-    def download_captions(self):
-        main_folder = Folder.objects.longs_folder.full_path
-        list_videos_dir = os.listdir(main_folder)
-        total = len(list_videos_dir)
-        for i, video_dir in enumerate(list_videos_dir):
-            # print_progress_bar(i,total,f'Total: {total}')
-            local_folder = LocalContent.objects.get(iden=video_dir)
-            
-            for file in os.listdir(local_folder.local_path):
-                if re.search('.srt$', file):
-                    continue
-                else:
-                    captions_response = self.youtube.get_caption(local_folder, local_folder.video_downloaded.all()[0])
-                    
-                    if captions_response['result'] == 'error':
-                        local_folder.has_consistent_error = True
-                        local_folder.error_msg = captions_response['message']
-                        local_folder.save()
-                        continue
-        print('done')
-
+    def share_web_content(self):
+        content = requests.get(self.sitemap).content
+        tree = ET.parse(content)
+        root = tree.getroot()
+        for url in root.findall('loc'):
+            print(url)
 
     def share_long(self, retry=0):
         retry = retry
@@ -107,10 +90,8 @@ class Multipostage:
                 time.sleep(60)
                 return self.share_long(retry)
 
-        logger.info(f'Starting the repost')
         custom_title = video.new_title if video.new_title else video.old_title
         video_id = yb_response['extra']
-        logger.info(f'Starting the repost process of {custom_title} in 1 min, the youtube video id is {video_id}')
         time.sleep(60)
 
         self.repost_youtube_video(video_id, yb_title = custom_title)
@@ -274,3 +255,8 @@ class Multipostage:
         local_content.published = True
         local_content.save()
         
+    def reshare_old_youtube_content(self):
+        videos = self.youtube.parse_youtube_channel(self.youtube_channel_url, download_videos= False)
+        print(videos)
+        #get one and share it
+        pass

@@ -33,14 +33,25 @@ def main():
     help='Post image')
 
     parser.add_argument('-test', "--test", action='store_true',
-    help='Test')  
+    help='Test')
+
+    parser.add_argument('-web', "--web", action='store_true',
+    help='Share web content')
+
+    parser.add_argument('-auth', "--auth_host_name", action='store_true',
+    help='Authenticate on youtube')
 
     args_dict = vars(parser.parse_args())
 
     if all(value is False for value in list(args_dict.values())): 
-        Multipostage().tests()
         desktop_notification("Selecciona una opción", message="'-short, -long ,-img o -test'")           
 
+    if args_dict['auth_host_name'] is True:
+        Multipostage().auth_yb()
+    
+    if args_dict['web'] is True:
+        Multipostage().share_web_content()
+    
     if args_dict['long'] is True:
         Multipostage().share_long()
 
@@ -51,7 +62,8 @@ def main():
     if args_dict['short'] is True:
         Multipostage().share_short()
     
-    if args_dict['test'] is True:        
+    if args_dict['test'] is True:
+        Multipostage().tests()
         desktop_notification('Nop')
 
 if __name__ == '__main__':

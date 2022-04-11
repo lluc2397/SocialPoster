@@ -240,30 +240,28 @@ class Youtube:
     return new_video
 
 
-  def parse_youtube_channel(self, channel_to_parse, keep_scraping = True):
+  def parse_youtube_channel(self, channel_to_parse, keep_scraping = True, download_videos = True):
     """
     channel_to_parse can be the YoutubeChannel model or a url (str)
     """
     if type(channel_to_parse) == str:
       channel = Channel(channel_to_parse)
-      channel_to_parse = YoutubeChannel.objects.create(
+      channel_to_parse = YoutubeChannel.objects.get_or_create(
         name = channel.channel_name,
         url = channel_to_parse,
         keep_scraping= keep_scraping,
-      )
+      )[0]
     else:
       channel = Channel(channel_to_parse.url)
 
     all_videos = channel.video_urls
+    if download_videos == True:
+      for video_url in (all_videos):
+        self.new_video_to_parse(channel_to_parse,video_url)
+        channel_to_parse.all_parsed = True
+        channel_to_parse.save()    
 
-    for video_url in (all_videos):
-      self.new_video_to_parse(channel_to_parse,video_url)
-
-    
-    channel_to_parse.all_parsed = True
-    channel_to_parse.save()
-
-    return channel_to_parse
+    return all_videos
   
 
 
@@ -513,3 +511,4 @@ class Youtube:
         caption =youtube_description)
     
     return upload_video_response
+    
