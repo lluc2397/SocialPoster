@@ -1,0 +1,32 @@
+version: '3'
+
+volumes:
+  postgres_data: {}
+  postgres_data_backups: {}
+
+services:
+  django: &django
+    build:
+      context: .
+      dockerfile: ./compose/django/Dockerfile
+    image: socialposter_django
+    platform: linux/x86_64
+    depends_on:
+      - postgres
+    env_file:
+      - ./.envs/.django
+      - ./.envs/.postgres
+    ports:
+      - "9520:9520"
+    command: /start
+
+  postgres:
+    build:
+      context: .
+      dockerfile: ./compose/postgres/Dockerfile
+    image: socialposter_postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:Z
+      - postgres_data_backups:/backups:z
+    env_file:
+      - ./.envs/.postgres

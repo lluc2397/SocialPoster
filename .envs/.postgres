@@ -1,0 +1,7 @@
+# PostgreSQL
+# ------------------------------------------------------------------------------
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=socialposter
+POSTGRES_USER=lucas
+POSTGRES_PASSWORD=n9n9aYkSKM0vI0aLmSIKQ91STreGigufEjC7dwOaFBYhhxF3AJt8sX7sTfh7GUIU
